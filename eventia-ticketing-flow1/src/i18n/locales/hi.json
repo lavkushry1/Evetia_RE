@@ -1,4 +1,3 @@
-
 {
   "common": {
     "back": "वापस",
@@ -22,7 +21,8 @@
     "filter": "फ़िल्टर",
     "venue": "स्थान",
     "date": "तारीख",
-    "backToEvents": "इवेंट्स पर वापस जाएं"
+    "backToEvents": "इवेंट्स पर वापस जाएं",
+    "booknow": "अभी बुक करें"
   },
   "navbar": {
     "events": "इवेंट्स",
@@ -86,13 +86,20 @@
     "title": "अपना भुगतान पूरा करें",
     "subtitle": "{{eventTitle}} के लिए भुगतान पूरा करें",
     "totalAmount": "कुल राशि",
+    "finalAmount": "अंतिम राशि",
     "tickets": "टिकट",
     "upiPayment": "यूपीआई भुगतान",
     "scanQR": "किसी भी यूपीआई ऐप से इस क्यूआर कोड को स्कैन करें",
     "payUsingVPA": "वीपीए का उपयोग करके भुगतान करें",
     "enterUTR": "यूटीआर नंबर दर्ज करें",
     "confirmPayment": "भुगतान की पुष्टि करें",
-    "utrHelper": "यूटीआर नंबर एक अद्वितीय लेनदेन संदर्भ संख्या है"
+    "utrHelper": "यूटीआर नंबर एक अद्वितीय लेनदेन संदर्भ संख्या है",
+    "enterDiscountCode": "छूट कोड दर्ज करें",
+    "applyDiscount": "छूट लागू करें",
+    "discountSuccess": "छूट लागू की गई",
+    "discountError": "छूट त्रुटि",
+    "discountErrorGeneric": "छूट कोड लागू करने में विफल",
+    "discountApplied": "{amount} {currency} की छूट सफलतापूर्वक लागू की गई"
   },
   "confirmation": {
     "title": "बुकिंग की पुष्टि हो गई!",
@@ -109,5 +116,34 @@
     "shareTicket": "टिकट शेयर करें",
     "contactUs": "यदि आपके कोई प्रश्न हैं, तो हमसे संपर्क करें",
     "callUs": "हमें कॉल करें"
+  },
+  "admin": {
+    "createDiscount": "छूट बनाएं",
+    "existingDiscounts": "मौजूदा छूट",
+    "discountCode": "छूट कोड",
+    "discountValue": "छूट मूल्य",
+    "maxUses": "अधिकतम उपयोग",
+    "minPurchaseAmount": "न्यूनतम खरीद राशि",
+    "maxDiscountAmount": "अधिकतम छूट राशि",
+    "percentage": "प्रतिशत",
+    "fixed": "निश्चित राशि",
+    "code": "कोड",
+    "type": "प्रकार",
+    "value": "मूल्य",
+    "uses": "उपयोग",
+    "validity": "वैधता",
+    "status": "स्थिति",
+    "actions": "कार्य",
+    "active": "सक्रिय",
+    "inactive": "निष्क्रिय",
+    "delete": "हटाएं",
+    "confirmDelete": "क्या आप वाकई इस छूट को हटाना चाहते हैं?",
+    "discountSuccess": "सफल",
+    "discountError": "त्रुटि",
+    "discountCreated": "छूट सफलतापूर्वक बनाई गई",
+    "discountDeleted": "छूट सफलतापूर्वक हटाई गई",
+    "fetchError": "छूट प्राप्त करने में विफल",
+    "createError": "छूट बनाने में विफल",
+    "deleteError": "छूट हटाने में विफल"
   }
 }

@@ -3,12 +3,13 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import UpiPayment from '@/components/payment/UpiPayment';
+import { UpiPayment } from '@/components/payment/UpiPayment';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
+import { DiscountForm } from '@/components/payment/DiscountForm';
 
 const Payment = () => {
   const { t } = useTranslation();
@@ -18,6 +19,10 @@ const Payment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [finalAmount, setFinalAmount] = useState(0);
+  const [discountCode, setDiscountCode] = useState('');
+  const [upiSettings, setUpiSettings] = useState<any>(null);
   
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -26,6 +31,7 @@ const Payment = () => {
   useEffect(() => {
     if (location.state?.bookingDetails) {
       setBookingDetails(location.state.bookingDetails);
+      setFinalAmount(location.state.bookingDetails.amount);
       setIsLoading(false);
       return;
     }
@@ -60,6 +66,7 @@ const Payment = () => {
             ticketCount: data.ticket_count,
             deliveryDetails: data.delivery_details
           });
+          setFinalAmount(data.amount);
         } else {
           toast({
             title: "Booking not found",
@@ -83,6 +90,31 @@ const Payment = () => {
     fetchBookingDetails();
   }, [bookingId, location.state, navigate]);
 
+  useEffect(() => {
+    fetchUpiSettings();
+  }, []);
+
+  const fetchUpiSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('upi_settings')
+        .select('*')
+        .eq('isActive', true)
+        .single();
+
+      if (error) throw error;
+      setUpiSettings(data);
+    } catch (error) {
+      console.error('Error fetching UPI settings:', error);
+    }
+  };
+
+  const handleDiscountApplied = (newAmount: number, code: string) => {
+    setDiscountAmount(newAmount);
+    setDiscountCode(code);
+    setFinalAmount(newAmount);
+  };
+
   const handleUtrSubmit = (utr: string) => {
     setIsProcessing(true);
     
@@ -93,7 +125,10 @@ const Payment = () => {
           utr,
           bookingDetails: {
             ...bookingDetails,
-            bookingId
+            bookingId,
+            discountAmount,
+            finalAmount,
+            discountCode
           }
         }
       });
@@ -142,6 +177,18 @@ const Payment = () => {
                   <div>
                     <p className="text-sm text-gray-500">{t('payment.totalAmount')}</p>
                     <p className="text-xl font-bold">₹{bookingDetails.amount.toLocaleString('en-IN')}</p>
+                    {discountAmount > 0 && (
+                      <>
+                        <p className="text-sm text-green-600 mt-2">{t('payment.discountApplied')}</p>
+                        <p className="text-lg font-bold text-green-600">
+                          -₹{discountAmount.toLocaleString('en-IN')}
+                        </p>
+                      </>
+                    )}
+                    <p className="text-sm text-gray-500 mt-2">{t('payment.finalAmount')}</p>
+                    <p className="text-xl font-bold">
+                      ₹{finalAmount.toLocaleString('en-IN')}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">{t('payment.tickets')}</p>
@@ -151,13 +198,24 @@ const Payment = () => {
                   </div>
                 </div>
               </div>
+
+              <div className="mt-4">
+                <DiscountForm
+                  amount={bookingDetails.amount}
+                  onDiscountApplied={handleDiscountApplied}
+                />
+              </div>
             </div>
             
-            <UpiPayment 
-              bookingId={bookingId || '0'}
-              amount={bookingDetails.amount}
-              onUtrSubmit={handleUtrSubmit}
-            />
+            {upiSettings && (
+              <UpiPayment 
+                bookingId={bookingId || '0'}
+                amount={finalAmount}
+                upiVPA={upiSettings.upiVpa}
+                discountCode={discountCode}
+                onUtrSubmit={handleUtrSubmit}
+              />
+            )}
           </div>
         </div>
       </main>

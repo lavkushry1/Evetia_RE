@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
 import { errorHandler } from './middleware/errorHandler';
+import SocketService from './services/socket.service';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -18,6 +20,12 @@ dotenv.config();
 
 // Create Express app
 export const app = express();
+
+// Create HTTP server
+export const server = createServer(app);
+
+// Initialize Socket.io
+export const socketService = new SocketService(server);
 
 // Middleware
 app.use(cors());

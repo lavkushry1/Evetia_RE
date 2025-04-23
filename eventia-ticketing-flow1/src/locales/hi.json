@@ -1,0 +1,26 @@
+{
+  "common": {
+    "booknow": "अभी बुक करें"
+  },
+  "payment": {
+    "title": "भुगतान",
+    "originalAmount": "मूल राशि",
+    "discountedAmount": "छूट के बाद राशि",
+    "enterDiscountCode": "छूट कोड दर्ज करें",
+    "applyDiscount": "छूट लागू करें",
+    "invalidDiscountCode": "अमान्य छूट कोड",
+    "discountInactive": "यह छूट कोड निष्क्रिय है",
+    "discountExhausted": "यह छूट कोड अपनी उपयोग सीमा तक पहुंच गया है",
+    "discountExpired": "यह छूट कोड समाप्त हो गया है",
+    "discountApplied": "छूट सफलतापूर्वक लागू की गई",
+    "discountError": "छूट लागू करने में त्रुटि",
+    "scanQRCode": "भुगतान के लिए QR कोड स्कैन करें",
+    "upiVPA": "यूपीआई आईडी",
+    "amount": "राशि",
+    "note": "नोट",
+    "enterUTR": "यूटीआर नंबर दर्ज करें",
+    "submitUTR": "यूटीआर जमा करें",
+    "utrSubmitted": "यूटीआर सफलतापूर्वक जमा किया गया",
+    "utrError": "यूटीआर जमा करने में त्रुटि"
+  }
+} 

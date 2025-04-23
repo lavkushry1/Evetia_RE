@@ -1,4 +1,3 @@
-
 {
   "app": {
     "name": "Eventia"
@@ -30,7 +29,8 @@
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
     "menu": "Menu",
-    "close": "Close"
+    "close": "Close",
+    "booknow": "Book Now"
   },
   "navbar": {
     "home": "Home",
@@ -98,6 +98,7 @@
     "title": "Complete Your Payment",
     "subtitle": "You're booking tickets for: {eventTitle}",
     "totalAmount": "Total Amount",
+    "finalAmount": "Final Amount",
     "tickets": "Tickets",
     "scanQR": "Scan QR code with any UPI app",
     "payeeDetails": "Payee Details",
@@ -107,7 +108,13 @@
     "submitUTR": "Submit UTR/Reference ID",
     "utrDescription": "After payment, enter the UTR or reference ID from your UPI app",
     "utrPlaceholder": "Enter UTR/Reference ID",
-    "confirmPayment": "Confirm Payment"
+    "confirmPayment": "Confirm Payment",
+    "enterDiscountCode": "Enter discount code",
+    "applyDiscount": "Apply Discount",
+    "discountSuccess": "Discount Applied",
+    "discountError": "Discount Error",
+    "discountErrorGeneric": "Failed to apply discount code",
+    "discountApplied": "Discount of {amount} {currency} applied successfully"
   },
   "confirmation": {
     "title": "Booking Confirmed!",
@@ -166,5 +173,34 @@
     "faq3Answer": "Refund policies vary by event. Please check the event details page for specific refund policies or contact our support team for assistance.",
     "faq4Question": "How do I view the venue in AR?",
     "faq4Answer": "On the event details page, click on 'View Venue in AR' to experience an augmented reality view of the venue from your selected seat."
+  },
+  "admin": {
+    "createDiscount": "Create Discount",
+    "existingDiscounts": "Existing Discounts",
+    "discountCode": "Discount Code",
+    "discountValue": "Discount Value",
+    "maxUses": "Maximum Uses",
+    "minPurchaseAmount": "Minimum Purchase Amount",
+    "maxDiscountAmount": "Maximum Discount Amount",
+    "percentage": "Percentage",
+    "fixed": "Fixed Amount",
+    "code": "Code",
+    "type": "Type",
+    "value": "Value",
+    "uses": "Uses",
+    "validity": "Validity",
+    "status": "Status",
+    "actions": "Actions",
+    "active": "Active",
+    "inactive": "Inactive",
+    "delete": "Delete",
+    "confirmDelete": "Are you sure you want to delete this discount?",
+    "discountSuccess": "Success",
+    "discountError": "Error",
+    "discountCreated": "Discount created successfully",
+    "discountDeleted": "Discount deleted successfully",
+    "fetchError": "Failed to fetch discounts",
+    "createError": "Failed to create discount",
+    "deleteError": "Failed to delete discount"
   }
 }

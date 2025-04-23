@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -12,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createClient } from '@supabase/supabase-js';
-import QRCodeGenerator from '@/components/payment/QRCodeGenerator';
+import { QRCodeGenerator } from '@/components/payment/QRCodeGenerator';
 import { usePaymentSettings } from '@/hooks/use-payment-settings';
 
 // Form schema for UPI VPA validation
@@ -347,7 +346,7 @@ const AdminUpiManagement = () => {
                       <QRCodeGenerator 
                         upiVPA={form.getValues('vpa')}
                         amount={100}
-                        payeeName={form.getValues('merchantName')}
+                        eventTitle={form.getValues('merchantName')}
                         transactionNote="Sample Transaction"
                       />
                     </div>

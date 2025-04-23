@@ -1,0 +1,26 @@
+{
+  "common": {
+    "booknow": "Book Now"
+  },
+  "payment": {
+    "title": "Payment",
+    "originalAmount": "Original Amount",
+    "discountedAmount": "Discounted Amount",
+    "enterDiscountCode": "Enter Discount Code",
+    "applyDiscount": "Apply Discount",
+    "invalidDiscountCode": "Invalid discount code",
+    "discountInactive": "This discount code is inactive",
+    "discountExhausted": "This discount code has reached its usage limit",
+    "discountExpired": "This discount code has expired",
+    "discountApplied": "Discount applied successfully",
+    "discountError": "Error applying discount",
+    "scanQRCode": "Scan QR code to pay",
+    "upiVPA": "UPI ID",
+    "amount": "Amount",
+    "note": "Note",
+    "enterUTR": "Enter UTR Number",
+    "submitUTR": "Submit UTR",
+    "utrSubmitted": "UTR submitted successfully",
+    "utrError": "Error submitting UTR"
+  }
+} 

@@ -26,8 +26,8 @@ export class Event {
   @Column()
   capacity: number;
 
-  @Column({ default: 0 })
-  bookedSeats: number;
+  @Column('simple-array', { default: [] })
+  bookedSeats: string[];
 
   @Column({ default: true })
   isActive: boolean;

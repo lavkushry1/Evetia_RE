@@ -1,52 +1,49 @@
-
-import React, { useEffect, useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';  // Changed import to use QRCodeSVG
+import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 
 interface QRCodeGeneratorProps {
-  upiVPA: string;
-  amount: number;
-  payeeName?: string;
-  transactionNote?: string;
+    upiVPA: string;
+    amount: number;
+    eventTitle?: string;
+    transactionNote?: string;
 }
 
-const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
-  upiVPA,
-  amount,
-  payeeName = 'Eventia',
-  transactionNote = '',
+export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
+    upiVPA,
+    amount,
+    eventTitle = 'Eventia Booking',
+    transactionNote
 }) => {
-  const [qrValue, setQrValue] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
+    const { t } = useTranslation();
+    const upiLink = `upi://pay?pa=${upiVPA}&pn=Eventia&am=${amount}&tn=${transactionNote || eventTitle}`;
 
-  useEffect(() => {
-    if (upiVPA && amount) {
-      // Construct UPI payment URL
-      const upiUrl = `upi://pay?pa=${upiVPA}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-      setQrValue(upiUrl);
-      setIsLoading(false);
-    }
-  }, [upiVPA, amount, payeeName, transactionNote]);
-
-  if (isLoading) {
     return (
-      <Card className="flex items-center justify-center p-6 bg-gray-50 w-52 h-52 md:w-64 md:h-64 mx-auto">
-        <Skeleton className="h-40 w-40 md:h-48 md:w-48" />
-      </Card>
+        <div className="qr-code-container">
+            <QRCodeSVG
+                value={upiLink}
+                size={256}
+                level="H"
+                includeMargin={true}
+            />
+            <div className="qr-details mt-4">
+                <p className="text-sm text-gray-600">
+                    {t('payment.scanQRCode', 'Scan QR code to pay')}
+                </p>
+                <p className="text-sm font-medium">
+                    {t('payment.upiVPA', 'UPI ID')}: {upiVPA}
+                </p>
+                <p className="text-sm font-medium">
+                    {t('payment.amount', 'Amount')}: ₹{amount}
+                </p>
+                {transactionNote && (
+                    <p className="text-sm text-gray-600">
+                        {t('payment.note', 'Note')}: {transactionNote}
+                    </p>
+                )}
+            </div>
+        </div>
     );
-  }
-
-  return (
-    <Card className="flex items-center justify-center p-6 bg-gray-50 w-52 h-52 md:w-64 md:h-64 mx-auto">
-      <QRCodeSVG  // Changed from QRCode to QRCodeSVG
-        value={qrValue}
-        size={200}
-        level="H"
-        includeMargin={true}
-      />
-    </Card>
-  );
 };
-
-export default QRCodeGenerator;

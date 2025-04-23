@@ -7,6 +7,9 @@ export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column('simple-array')
+  seats: string[];
+
   @Column()
   quantity: number;
 

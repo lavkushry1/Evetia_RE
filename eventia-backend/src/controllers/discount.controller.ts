@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Discount } from '../models/discount.model';
+import { Discount, IDiscount } from '../models/discount';
 
 interface AuthRequest extends Request {
   user?: {
@@ -29,62 +29,116 @@ export class DiscountController {
     }
   }
 
-  async createDiscount(req: Request, res: Response) {
+  static async createDiscount(req: Request, res: Response) {
     try {
-      const discount = new Discount(req.body);
+      const discountData: IDiscount = req.body;
+      const discount = new Discount(discountData);
       await discount.save();
-      return res.status(201).json(discount);
+      res.status(201).json(discount);
     } catch (error) {
-      return res.status(500).json({ message: 'Error creating discount', error });
+      res.status(400).json({ message: 'Error creating discount', error });
     }
   }
 
-  async updateDiscount(req: Request, res: Response) {
+  static async updateDiscount(req: Request, res: Response) {
     try {
-      const discount = await Discount.findByIdAndUpdate(req.params.id, req.body, { new: true });
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      const discount = await Discount.findByIdAndUpdate(
+        id,
+        updateData,
+        { new: true, runValidators: true }
+      );
+
       if (!discount) {
         return res.status(404).json({ message: 'Discount not found' });
       }
-      return res.json(discount);
+
+      res.json(discount);
     } catch (error) {
-      return res.status(500).json({ message: 'Error updating discount', error });
+      res.status(400).json({ message: 'Error updating discount', error });
     }
   }
 
-  async deleteDiscount(req: Request, res: Response) {
+  static async deleteDiscount(req: Request, res: Response) {
     try {
-      const discount = await Discount.findByIdAndDelete(req.params.id);
+      const { id } = req.params;
+      const discount = await Discount.findByIdAndDelete(id);
+
       if (!discount) {
         return res.status(404).json({ message: 'Discount not found' });
       }
-      return res.json({ message: 'Discount deleted successfully' });
+
+      res.json({ message: 'Discount deleted successfully' });
     } catch (error) {
-      return res.status(500).json({ message: 'Error deleting discount', error });
+      res.status(500).json({ message: 'Error deleting discount', error });
     }
   }
 
-  async validateDiscount(req: Request, res: Response) {
+  static async getDiscountByCode(req: Request, res: Response) {
     try {
-      const { code } = req.body;
-      const discount = await Discount.findOne({ code });
+      const { code } = req.params;
+      const discount = await Discount.findOne({ code: code.toUpperCase() });
+      
+      if (!discount) {
+        return res.status(404).json({ message: 'Discount not found' });
+      }
+
+      res.json(discount);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching discount', error });
+    }
+  }
+
+  static async validateDiscount(req: Request, res: Response) {
+    try {
+      const { code, amount } = req.body;
+      const discount = await Discount.findOne({ code: code.toUpperCase() });
 
       if (!discount) {
         return res.status(404).json({ message: 'Invalid discount code' });
       }
 
-      if (discount.isExpired()) {
+      if (!discount.isActive) {
+        return res.status(400).json({ message: 'Discount code is inactive' });
+      }
+
+      const now = new Date();
+      if (now < discount.startDate || now > discount.endDate) {
         return res.status(400).json({ message: 'Discount code has expired' });
       }
 
-      return res.json({
-        valid: true,
-        discount: {
-          percentage: discount.percentage,
-          amount: discount.amount,
-        },
+      if (discount.currentUses >= discount.maxUses) {
+        return res.status(400).json({ message: 'Discount code has reached maximum uses' });
+      }
+
+      if (discount.minPurchaseAmount && amount < discount.minPurchaseAmount) {
+        return res.status(400).json({ 
+          message: `Minimum purchase amount of ${discount.minPurchaseAmount} required` 
+        });
+      }
+
+      let discountAmount = 0;
+      if (discount.type === 'percentage') {
+        discountAmount = (amount * discount.value) / 100;
+        if (discount.maxDiscountAmount) {
+          discountAmount = Math.min(discountAmount, discount.maxDiscountAmount);
+        }
+      } else {
+        discountAmount = discount.value;
+      }
+
+      const finalAmount = amount - discountAmount;
+
+      res.json({
+        isValid: true,
+        discountAmount,
+        finalAmount,
+        discount
       });
     } catch (error) {
-      return res.status(500).json({ message: 'Error validating discount', error });
+      res.status(500).json({ message: 'Error validating discount', error });
     }
   }
 }

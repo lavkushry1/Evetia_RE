@@ -1,75 +1,47 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
-export interface IDiscount extends Document {
+@Entity('discounts')
+export class Discount {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ unique: true })
   code: string;
-  percentage: number;
+
+  @Column()
   amount: number;
-  startDate: Date;
-  endDate: Date;
+
+  @Column({ nullable: true })
+  description: string;
+
+  @Column({ default: 100 })
   maxUses: number;
-  currentUses: number;
-  isActive: boolean;
+
+  @Column({ default: 0 })
+  usesCount: number;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  expiryDate: Date;
+
+  @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt: Date;
-  updatedAt: Date;
-  isExpired(): boolean;
-}
 
-const discountSchema = new Schema<IDiscount>(
-  {
-    code: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      uppercase: true,
-    },
-    percentage: {
-      type: Number,
-      required: true,
-      min: 0,
-      max: 100,
-    },
-    amount: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    startDate: {
-      type: Date,
-      required: true,
-    },
-    endDate: {
-      type: Date,
-      required: true,
-    },
-    maxUses: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    currentUses: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  {
-    timestamps: true,
+  @Column({ default: true })
+  isActive: boolean;
+
+  isExpired(): boolean {
+    if (!this.isActive) return true;
+    if (this.usesCount >= this.maxUses) return true;
+    if (this.expiryDate && new Date() > this.expiryDate) return true;
+    return false;
   }
-);
 
-discountSchema.methods.isExpired = function(): boolean {
-  const now = new Date();
-  return (
-    now < this.startDate ||
-    now > this.endDate ||
-    this.currentUses >= this.maxUses ||
-    !this.isActive
-  );
-};
+  isValid(): boolean {
+    return !this.isExpired();
+  }
 
-export const Discount = mongoose.model<IDiscount>('Discount', discountSchema); 
+  applyDiscount(amount: number): number {
+    if (!this.isValid()) return amount;
+    return Math.max(0, amount - this.amount);
+  }
+} 
