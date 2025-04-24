@@ -1,8 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppDataSource } from '../config/database';
 import { User } from '../models/user.model';
-
-const userRepository = AppDataSource.getRepository(User);
 
 export const isAdmin = async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
   try {
@@ -10,7 +7,7 @@ export const isAdmin = async (req: Request, res: Response, next: NextFunction): 
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    const user = await userRepository.findOne({ where: { id: req.user.id } });
+    const user = await User.findByPk(req.user.id);
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

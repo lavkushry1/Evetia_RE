@@ -1,133 +1,130 @@
-import { Request, Response } from 'express';
-import { AppDataSource } from '../config/database';
+import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/user.model';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { JwtService } from '../services/jwt.service';
+import { BadRequestError, UnauthorizedError, NotFoundError } from '../utils/errors';
+import bcrypt from 'bcrypt';
 
-const userRepository = AppDataSource.getRepository(User);
-
-// Register new user
-export const register = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const { name, email, password } = req.body;
-
-    // Check if user exists
-    const existingUser = await userRepository.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+      };
     }
-
-    // Create new user
-    const user = new User();
-    user.name = name;
-    user.email = email;
-    user.password = await bcrypt.hash(password, 10);
-
-    // Save user
-    await userRepository.save(user);
-
-    // Generate token
-    const token = jwt.sign(
-      { id: user.id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '1d' }
-    );
-
-    return res.status(201).json({
-      message: 'User registered successfully',
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({ message: 'Error registering user', error });
   }
-};
+}
 
-// Login user
-export const login = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const { email, password } = req.body;
+export class AuthController {
+  static async register(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, password, name } = req.body;
 
-    // Find user
-    const user = await userRepository.findOne({ where: { email } });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Generate token
-    const token = jwt.sign(
-      { id: user.id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '1d' }
-    );
-
-    return res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        throw new BadRequestError('Email already registered');
       }
-    });
-  } catch (error) {
-    return res.status(500).json({ message: 'Error logging in', error });
-  }
-};
 
-// Get user profile
-export const getProfile = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const userId = (req as any).user.id;
-    const user = await userRepository.findOne({ where: { id: userId } });
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await User.create({
+        email,
+        password: hashedPassword,
+        name,
+        role: 'user',
+        isActive: true
+      });
+
+      const token = JwtService.generateToken({ id: user.id.toString() });
+      const refreshToken = JwtService.generateRefreshToken({ id: user.id.toString() });
+
+      res.status(201).json({
+        message: 'User registered successfully',
+        token,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        }
+      });
+    } catch (error) {
+      next(error);
     }
+  }
 
-    return res.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
+  static async login(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, password } = req.body;
+
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        throw new UnauthorizedError('Invalid credentials');
       }
-    });
-  } catch (error) {
-    return res.status(500).json({ message: 'Error fetching profile', error });
-  }
-};
 
-// Verify token
-export const verifyToken = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-    
-    const user = await userRepository.findOne({ where: { id: req.user.id } });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    return res.json({ 
-      valid: true, 
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        throw new UnauthorizedError('Invalid credentials');
       }
-    });
-  } catch (error) {
-    return res.status(500).json({ message: 'Error verifying token', error });
+
+      const token = JwtService.generateToken({ id: user.id.toString() });
+      const refreshToken = JwtService.generateRefreshToken({ id: user.id.toString() });
+
+      res.json({
+        message: 'Login successful',
+        token,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-}; 
+
+  static async refreshToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { refreshToken } = req.body;
+      
+      if (!refreshToken) {
+        throw new BadRequestError('Refresh token is required');
+      }
+
+      const { accessToken, refreshToken: newRefreshToken } = JwtService.rotateRefreshToken(refreshToken);
+
+      res.json({
+        message: 'Token refreshed successfully',
+        token: accessToken,
+        refreshToken: newRefreshToken
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        throw new UnauthorizedError('Not authenticated');
+      }
+
+      const user = await User.findByPk(req.user.id, {
+        attributes: ['id', 'email', 'name', 'createdAt', 'updatedAt']
+      });
+
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      res.json({ user });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async verifyToken(req: Request, res: Response) {
+    res.json({ valid: true, user: req.user });
+  }
+} 

@@ -1,41 +1,74 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { User } from './user.model';
-import { Event } from './event.model';
+import { Model, DataTypes } from 'sequelize';
+import { sequelize } from '../config/database';
 
-@Entity('bookings')
-export class Booking {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column('simple-array')
-  seats: string[];
-
-  @Column()
-  quantity: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+export interface BookingAttributes {
+  id: number;
+  userId: number;
+  eventId: number;
+  status: string;
   totalAmount: number;
+  seats: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-  @Column({ length: 50 })
-  status: 'pending' | 'confirmed' | 'cancelled';
+export interface BookingCreationAttributes extends Omit<BookingAttributes, 'id'> {}
 
-  @ManyToOne(() => User, user => user.bookings)
-  @JoinColumn({ name: 'userId' })
-  user: User;
+export class Booking extends Model<BookingAttributes, BookingCreationAttributes> implements BookingAttributes {
+  public id!: number;
+  public userId!: number;
+  public eventId!: number;
+  public status!: string;
+  public totalAmount!: number;
+  public seats!: string[];
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 
-  @Column()
-  userId: string;
+  // Define associations
+  public readonly event?: any;
+  public readonly user?: any;
+}
 
-  @ManyToOne(() => Event, event => event.bookings)
-  @JoinColumn({ name: 'eventId' })
-  event: Event;
-
-  @Column()
-  eventId: string;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-} 
+Booking.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    eventId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'events',
+        key: 'id',
+      },
+    },
+    status: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'pending',
+    },
+    totalAmount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+    },
+    seats: {
+      type: DataTypes.JSON,
+      allowNull: false,
+      defaultValue: [],
+    },
+  },
+  {
+    sequelize,
+    tableName: 'bookings',
+  }
+); 

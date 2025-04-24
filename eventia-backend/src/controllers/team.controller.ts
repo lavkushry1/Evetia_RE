@@ -1,14 +1,11 @@
 import { Request, Response } from 'express';
-import { AppDataSource } from '../config/database';
 import { Team } from '../models/team.model';
-
-const teamRepository = AppDataSource.getRepository(Team);
 
 export class TeamController {
   async getAllTeams(_req: Request, res: Response) {
     try {
-      const teams = await teamRepository.find({
-        order: { name: 'ASC' }
+      const teams = await Team.findAll({
+        order: [['name', 'ASC']]
       });
       return res.json(teams);
     } catch (error) {
@@ -18,9 +15,7 @@ export class TeamController {
 
   async getTeamById(req: Request, res: Response) {
     try {
-      const team = await teamRepository.findOne({
-        where: { id: req.params.id }
-      });
+      const team = await Team.findByPk(req.params.id);
       
       if (!team) {
         return res.status(404).json({ message: 'Team not found' });
@@ -33,8 +28,7 @@ export class TeamController {
 
   async createTeam(req: Request, res: Response) {
     try {
-      const team = teamRepository.create(req.body);
-      await teamRepository.save(team);
+      const team = await Team.create(req.body);
       return res.status(201).json(team);
     } catch (error) {
       return res.status(500).json({ message: 'Error creating team', error });
@@ -43,18 +37,14 @@ export class TeamController {
 
   async updateTeam(req: Request, res: Response) {
     try {
-      const team = await teamRepository.findOne({
-        where: { id: req.params.id }
-      });
+      const team = await Team.findByPk(req.params.id);
       
       if (!team) {
         return res.status(404).json({ message: 'Team not found' });
       }
       
-      teamRepository.merge(team, req.body);
-      const updatedTeam = await teamRepository.save(team);
-      
-      return res.json(updatedTeam);
+      await team.update(req.body);
+      return res.json(team);
     } catch (error) {
       return res.status(500).json({ message: 'Error updating team', error });
     }
@@ -62,15 +52,13 @@ export class TeamController {
 
   async deleteTeam(req: Request, res: Response) {
     try {
-      const team = await teamRepository.findOne({
-        where: { id: req.params.id }
-      });
+      const team = await Team.findByPk(req.params.id);
       
       if (!team) {
         return res.status(404).json({ message: 'Team not found' });
       }
       
-      await teamRepository.remove(team);
+      await team.destroy();
       return res.json({ message: 'Team deleted successfully' });
     } catch (error) {
       return res.status(500).json({ message: 'Error deleting team', error });

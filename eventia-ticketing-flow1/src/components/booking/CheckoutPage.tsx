@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import DeliveryForm from './DeliveryForm';
 import { UpiPayment } from '../payment/UpiPayment';
 import { usePaymentSettings } from '@/hooks/use-payment-settings';
+import apiService from '@/services/api';
 
 interface BookingTicket {
   category: string;
@@ -20,6 +20,7 @@ interface BookingData {
   eventTitle: string;
   tickets: BookingTicket[];
   totalAmount: number;
+  eventId: string;
 }
 
 const CheckoutPage: React.FC = () => {
@@ -30,11 +31,6 @@ const CheckoutPage: React.FC = () => {
   const [bookingId, setBookingId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { settings } = usePaymentSettings();
-
-  // Initialize Supabase client
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseKey);
 
   useEffect(() => {
     const data = sessionStorage.getItem('bookingData');
@@ -57,44 +53,22 @@ const CheckoutPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Create booking record
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert({
-          event_title: bookingData.eventTitle,
-          total_amount: bookingData.totalAmount,
-          status: 'pending',
-          customer_name: deliveryData.fullName,
-          customer_email: deliveryData.email,
-          customer_phone: deliveryData.phone,
-          delivery_address: deliveryData.address,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (bookingError) throw bookingError;
-
-      // Create ticket records
-      const ticketPromises = bookingData.tickets.map(ticket =>
-        supabase.from('tickets').insert({
-          booking_id: booking.id,
-          category: ticket.category,
-          quantity: ticket.quantity,
-          price: ticket.price,
-          subtotal: ticket.subtotal
-        })
-      );
-
-      await Promise.all(ticketPromises);
+      // Create booking using the API service
+      const booking = await apiService.createBooking({
+        eventId: bookingData.eventId,
+        quantity: bookingData.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0),
+        totalAmount: bookingData.totalAmount,
+        status: 'pending',
+        userId: 'current-user-id' // This should be replaced with the actual user ID
+      });
 
       setBookingId(booking.id);
       setStep('payment');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating booking:', error);
       toast({
-        title: t('Error'),
-        description: t('Failed to process booking. Please try again.'),
+        title: t('common.error'),
+        description: t('booking.createError'),
         variant: "destructive"
       });
     } finally {
@@ -104,24 +78,24 @@ const CheckoutPage: React.FC = () => {
 
   const handleUtrSubmit = async (utr: string) => {
     try {
-      // Update booking status
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'payment_pending' })
-        .eq('id', bookingId);
-
-      if (error) throw error;
+      // Update booking status using the API service
+      await apiService.updateRequestPaymentStatus(bookingId, {
+        paymentStatus: 'COMPLETED',
+        paymentMethod: 'UPI',
+        paymentId: utr,
+        paymentDate: new Date().toISOString()
+      });
 
       // Clear booking data from session
       sessionStorage.removeItem('bookingData');
 
       // Navigate to confirmation page
       navigate(`/confirmation/${bookingId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating booking status:', error);
       toast({
-        title: t('Error'),
-        description: t('Failed to update booking status'),
+        title: t('common.error'),
+        description: t('payment.utrSubmitError'),
         variant: "destructive"
       });
     }
@@ -141,7 +115,7 @@ const CheckoutPage: React.FC = () => {
         <CardHeader>
           <CardTitle>{bookingData.eventTitle}</CardTitle>
           <CardDescription>
-            {t('Order Summary')}
+            {t('booking.summary')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,14 +123,17 @@ const CheckoutPage: React.FC = () => {
             {bookingData.tickets.map((ticket, index) => (
               <div key={index} className="flex justify-between text-sm">
                 <span>
-                  {ticket.quantity}x {ticket.category}
+                  {t('booking.ticketQuantity', {
+                    quantity: ticket.quantity,
+                    category: ticket.category
+                  })}
                 </span>
-                <span>₹{ticket.subtotal}</span>
+                <span>{t('common.currency', { amount: ticket.subtotal })}</span>
               </div>
             ))}
             <div className="border-t pt-4 flex justify-between font-bold">
-              <span>{t('Total Amount')}</span>
-              <span>₹{bookingData.totalAmount}</span>
+              <span>{t('payment.totalAmount')}</span>
+              <span>{t('common.currency', { amount: bookingData.totalAmount })}</span>
             </div>
           </div>
         </CardContent>
@@ -171,7 +148,7 @@ const CheckoutPage: React.FC = () => {
         <UpiPayment
           bookingId={bookingId}
           amount={bookingData.totalAmount}
-          upiVPA={settings?.upiVPA || 'eventia@okicici'}
+          upiVPA={settings?.upiVpa || 'eventia@okicici'}
           eventTitle={bookingData.eventTitle}
           onUtrSubmit={handleUtrSubmit}
         />

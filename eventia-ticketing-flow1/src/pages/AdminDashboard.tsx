@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { CircleDollarSign, TrendingUp, Calendar, Users, AlertCircle, Check, CreditCard, Package, Ticket, Percent } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, Calendar, Users, AlertCircle, Check, CreditCard, Package, Ticket, Percent, MessageSquare } from 'lucide-react';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { toast } from '@/hooks/use-toast';
 
@@ -205,6 +205,36 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Link to="/admin-requests">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center">
+                    <MessageSquare className="h-5 w-5 mr-2 text-primary" />
+                    Request Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-500">Manage and approve user requests for refunds and ticket changes</p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link to="/admin-dashboard">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center">
+                    <Check className="h-5 w-5 mr-2 text-primary" />
+                    Support Tickets
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-500">View and respond to customer support tickets</p>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
 
           <Tabs defaultValue="revenue" className="w-full">

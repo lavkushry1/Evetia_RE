@@ -1,80 +1,55 @@
-import express from 'express';
-import { body } from 'express-validator';
-import { auth as authMiddleware } from '../middleware/auth';
-import { validateRequest } from '../middleware/validate-request';
-import {
-  createBooking,
-  getBookings,
-  getBooking,
-  updateBooking,
-  cancelBooking,
-  lockSeats,
-  unlockSeats,
-  generateTicket,
-} from '../controllers/booking.controller';
+import { Router, Request, Response, NextFunction } from 'express';
+import { BookingController } from '../controllers/booking.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { validateRequest } from '../middleware/validation.middleware';
+import { createBookingSchema, verifyPaymentSchema } from '../validations/booking.validation';
 
-const router = express.Router();
+// Define AuthRequest interface
+interface AuthRequest extends Request {
+  user: {
+    id: string;
+  };
+}
 
-// Create booking route
+const router = Router();
+const bookingController = new BookingController();
+
+// Create booking
 router.post(
   '/',
   authMiddleware,
-  [
-    body('eventId').notEmpty().withMessage('Event ID is required'),
-    body('seats').isArray().withMessage('Seats must be an array'),
-    body('totalAmount').isNumeric().withMessage('Total amount must be a number'),
-    body('paymentMethod').notEmpty().withMessage('Payment method is required'),
-  ],
-  validateRequest,
-  createBooking
+  validateRequest(createBookingSchema),
+  (req: Request, res: Response, next: NextFunction) => {
+    bookingController.createBooking(req as AuthRequest, res, next);
+  }
 );
 
-// Get all bookings route
-router.get('/', authMiddleware, getBookings);
+// Verify payment
+router.post(
+  '/:bookingId/verify-payment',
+  authMiddleware,
+  validateRequest(verifyPaymentSchema),
+  (req: Request, res: Response, next: NextFunction) => {
+    bookingController.verifyPayment(req, res, next);
+  }
+);
 
-// Get single booking route
-router.get('/:id', authMiddleware, getBooking);
-
-// Update booking route
-router.put(
+// Get single booking
+router.get(
   '/:id',
   authMiddleware,
-  [
-    body('status').optional().isIn(['pending', 'confirmed', 'cancelled']),
-    body('paymentStatus').optional().isIn(['pending', 'completed', 'failed']),
-  ],
-  validateRequest,
-  updateBooking
+  (req: Request, res: Response, next: NextFunction) => {
+    bookingController.getBooking(req as AuthRequest, res, next);
+  }
 );
 
-// Cancel booking route
-router.post('/:id/cancel', authMiddleware, cancelBooking);
-
-// Lock seats route
-router.post(
-  '/lock-seats',
+// Get user bookings
+router.get(
+  '/user/bookings',
   authMiddleware,
-  [
-    body('eventId').notEmpty().withMessage('Event ID is required'),
-    body('seats').isArray().withMessage('Seats must be an array'),
-  ],
-  validateRequest,
-  lockSeats
+  (req: Request, res: Response, next: NextFunction) => {
+    bookingController.getUserBookings(req as AuthRequest, res, next);
+  }
 );
-
-// Unlock seats route
-router.post(
-  '/unlock-seats',
-  authMiddleware,
-  [
-    body('eventId').notEmpty().withMessage('Event ID is required'),
-    body('seats').isArray().withMessage('Seats must be an array'),
-  ],
-  validateRequest,
-  unlockSeats
-);
-
-// Generate ticket route
-router.get('/:id/ticket', authMiddleware, generateTicket);
 
 export default router;

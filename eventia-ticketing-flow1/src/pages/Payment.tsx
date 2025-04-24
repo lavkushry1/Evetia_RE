@@ -7,9 +7,9 @@ import { UpiPayment } from '@/components/payment/UpiPayment';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 import { DiscountForm } from '@/components/payment/DiscountForm';
+import apiService from '@/services/api';
 
 const Payment = () => {
   const { t } = useTranslation();
@@ -23,10 +23,6 @@ const Payment = () => {
   const [finalAmount, setFinalAmount] = useState(0);
   const [discountCode, setDiscountCode] = useState('');
   const [upiSettings, setUpiSettings] = useState<any>(null);
-  
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseKey);
   
   useEffect(() => {
     if (location.state?.bookingDetails) {
@@ -45,32 +41,20 @@ const Payment = () => {
       try {
         setIsLoading(true);
         
-        const { data, error } = await supabase
-          .from('bookings')
-          .select(`
-            id,
-            event_title,
-            amount,
-            ticket_count,
-            delivery_details (*)
-          `)
-          .eq('id', bookingId)
-          .single();
-          
-        if (error) throw error;
+        const booking = await apiService.getBooking(bookingId);
         
-        if (data) {
+        if (booking) {
           setBookingDetails({
-            eventTitle: data.event_title,
-            amount: data.amount,
-            ticketCount: data.ticket_count,
-            deliveryDetails: data.delivery_details
+            eventTitle: booking.eventId,
+            amount: booking.totalAmount,
+            ticketCount: booking.quantity,
+            status: booking.status
           });
-          setFinalAmount(data.amount);
+          setFinalAmount(booking.totalAmount);
         } else {
           toast({
-            title: "Booking not found",
-            description: "Please try again or contact support",
+            title: t('common.error'),
+            description: t('payment.bookingNotFound'),
             variant: "destructive"
           });
           navigate('/events');
@@ -78,8 +62,8 @@ const Payment = () => {
       } catch (error) {
         console.error('Error fetching booking details:', error);
         toast({
-          title: "Error loading booking",
-          description: "Please try again later",
+          title: t('common.error'),
+          description: t('payment.loadingError'),
           variant: "destructive"
         });
       } finally {
@@ -88,7 +72,7 @@ const Payment = () => {
     };
     
     fetchBookingDetails();
-  }, [bookingId, location.state, navigate]);
+  }, [bookingId, location.state, navigate, t]);
 
   useEffect(() => {
     fetchUpiSettings();
@@ -96,14 +80,8 @@ const Payment = () => {
 
   const fetchUpiSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('upi_settings')
-        .select('*')
-        .eq('isActive', true)
-        .single();
-
-      if (error) throw error;
-      setUpiSettings(data);
+      const settings = await apiService.getPaymentSettings();
+      setUpiSettings(settings);
     } catch (error) {
       console.error('Error fetching UPI settings:', error);
     }
@@ -115,11 +93,11 @@ const Payment = () => {
     setFinalAmount(newAmount);
   };
 
-  const handleUtrSubmit = (utr: string) => {
+  const handleUtrSubmit = async (utr: string): Promise<void> => {
     setIsProcessing(true);
     
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      await apiService.submitUtr(bookingId!, utr);
       navigate(`/confirmation/${bookingId}`, {
         state: {
           utr,
@@ -132,7 +110,16 @@ const Payment = () => {
           }
         }
       });
-    }, 2000);
+    } catch (error) {
+      console.error('Error submitting UTR:', error);
+      toast({
+        title: t('common.error'),
+        description: t('payment.utrSubmitError'),
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (isLoading) {
@@ -212,7 +199,7 @@ const Payment = () => {
                 bookingId={bookingId || '0'}
                 amount={finalAmount}
                 upiVPA={upiSettings.upiVpa}
-                discountCode={discountCode}
+                eventTitle={bookingDetails.eventTitle}
                 onUtrSubmit={handleUtrSubmit}
               />
             )}

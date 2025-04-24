@@ -6,7 +6,6 @@
     "home": "Home",
     "events": "Events",
     "event": "Event",
-    "events": "Events",
     "tickets": "Tickets",
     "ticket": "Ticket",
     "back": "Back",
@@ -22,7 +21,6 @@
     "filter": "Filter",
     "all": "All",
     "showing": "Showing",
-    "event": "Event",
     "noEventsFound": "No events found",
     "tryDifferent": "Try different search criteria or reset filters",
     "backToEvents": "Back to Events",
@@ -30,7 +28,14 @@
     "darkMode": "Dark Mode",
     "menu": "Menu",
     "close": "Close",
-    "booknow": "Book Now"
+    "booknow": "Book Now",
+    "loadingMatch": "Loading match details...",
+    "share": "Share",
+    "vs": "VS",
+    "viewOnMap": "View on Map",
+    "error": "Error",
+    "success": "Success",
+    "currency": "₹{{amount}}"
   },
   "navbar": {
     "home": "Home",
@@ -86,7 +91,69 @@
     "bookTickets": "Book Tickets",
     "noMatchesFound": "No matches found",
     "tryDifferentTeam": "Try selecting a different team",
-    "showAllMatches": "Show All Matches"
+    "showAllMatches": "Show All Matches",
+    "matchNumber": "Match {{number}}",
+    "selectTickets": "Select Tickets",
+    "selectTicketsDesc": "Choose your ticket category and quantity",
+    "bestView": "Best view of the match",
+    "orderSummary": "Order Summary",
+    "selectQuantity": "Select Quantity",
+    "proceedToPayment": "Proceed to Payment",
+    "selectTicketCategory": "Select a ticket category to see the order summary",
+    "selectSeats": "Select Seats",
+    "selectSeatsDesc": "Choose your seats from the available options",
+    "seatCategories": "Seat Categories",
+    "selectedSeats": "Selected Seats",
+    "selectSeatsToSee": "Select seats to see the order summary",
+    "seatLegend": {
+      "available": "Available",
+      "selected": "Selected",
+      "unavailable": "Unavailable"
+    },
+    "matchInfo": {
+      "title": "Match Information",
+      "about": "About the Match",
+      "aboutDesc": "The Indian Premier League (IPL) is a professional Twenty20 cricket league in India. This match features {{team1}} taking on {{team2}} at {{venue}}.",
+      "venueDetails": "Venue Details",
+      "venueDesc": "{{venue}} is one of the most iconic cricket stadiums in India. It has a seating capacity of over 68,000 and has hosted numerous international matches.",
+      "importantInfo": "Important Information",
+      "importantPoints": {
+        "gates": "Gates open 2 hours before the match",
+        "id": "Carry a valid ID proof for verification",
+        "food": "Outside food and beverages are not allowed",
+        "parking": "Parking is available at the venue (charges apply)"
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "refundPolicy": {
+        "question": "What is the refund policy?",
+        "answer": "Tickets are non-refundable once purchased. However, in case of match cancellation, a full refund will be processed within 5-7 business days."
+      },
+      "transfer": {
+        "question": "Can I transfer my ticket to someone else?",
+        "answer": "Yes, you can transfer your ticket to another person up to 24 hours before the match. The transfer can be done through the app or website."
+      },
+      "bring": {
+        "question": "What should I bring to the match?",
+        "answer": "Please bring your ticket (digital or printed), a valid ID proof, and any necessary items like sunglasses, hat, or rain gear depending on the weather."
+      }
+    },
+    "highlights": {
+      "title": "Match Highlights",
+      "topPlayers": {
+        "title": "Top Players",
+        "desc": "Watch star players from both teams in action"
+      },
+      "secure": {
+        "title": "Safe & Secure",
+        "desc": "Your tickets are protected with our secure booking system"
+      },
+      "notice": {
+        "title": "Important Notice",
+        "desc": "Please arrive at least 1 hour before the match starts"
+      }
+    }
   },
   "eventDetails": {
     "tickets": "Tickets",
@@ -94,9 +161,62 @@
     "available": "available",
     "proceedToPayment": "Proceed to Payment"
   },
+  "booking": {
+    "summary": "Order Summary",
+    "ticketQuantity": "{{quantity}}x {{category}}",
+    "createError": "Failed to process booking. Please try again.",
+    "updateError": "Failed to update booking status",
+    "deliveryDetails": "Delivery Details",
+    "deliveryDescription": "Please provide your contact and delivery information",
+    "paymentDetails": "Payment Details",
+    "confirmBooking": "Confirm Booking",
+    "bookingSuccess": "Booking Successful",
+    "bookingFailed": "Booking Failed",
+    "tryAgain": "Please try again",
+    "contactSupport": "Contact support if the issue persists",
+    "arSeatPreview": "AR Seat Preview",
+    "arSeatPreviewDescription": "View your selected seats in augmented reality",
+    "arView": "AR View",
+    "arInfo": "How it Works",
+    "startAR": "Start AR Experience",
+    "stopAR": "Stop AR Experience",
+    "arActive": "AR Experience Active",
+    "arStarted": "AR Experience Started",
+    "arEnded": "AR Experience Ended",
+    "arThankYou": "Thank you for using our AR feature!",
+    "arError": "There was an error with the AR experience",
+    "arStartError": "Failed to start AR experience",
+    "arNotSupported": "AR Not Supported",
+    "arNotSupportedDescription": "Your device or browser doesn't support augmented reality. You can still proceed with your booking.",
+    "arNotSupportedReason": "Your device or browser doesn't support augmented reality features required for this experience.",
+    "arAlternative": "You can still view your seats in the regular view",
+    "howARWorks": "How AR Seat Preview Works",
+    "arInstructions": "Experience your seats in augmented reality before confirming your booking:",
+    "arStep1": "Point your camera at a flat surface",
+    "arStep2": "Wait for the AR experience to load",
+    "arStep3": "Move around to view your seats from different angles",
+    "arStep4": "Use gestures to zoom and rotate the view",
+    "arNote": "Note: AR experience requires a device with camera and motion sensors. Best experienced on modern smartphones.",
+    "arPlaceholder": "AR experience would be displayed here. Click 'Start AR Experience' to begin.",
+    "form": {
+      "name": "Full Name",
+      "namePlaceholder": "Enter your full name",
+      "nameError": "Please enter a valid name (at least 3 characters)",
+      "email": "Email Address",
+      "emailPlaceholder": "Enter your email address",
+      "emailError": "Please enter a valid email address",
+      "phone": "Phone Number",
+      "phonePlaceholder": "Enter your phone number",
+      "phoneError": "Please enter a valid phone number (at least 10 digits)",
+      "address": "Delivery Address",
+      "addressPlaceholder": "Enter your complete address",
+      "addressError": "Please enter a complete address (at least 10 characters)",
+      "submit": "Continue to Payment"
+    }
+  },
   "payment": {
     "title": "Complete Your Payment",
-    "subtitle": "You're booking tickets for: {eventTitle}",
+    "subtitle": "You're booking tickets for: {{eventTitle}}",
     "totalAmount": "Total Amount",
     "finalAmount": "Final Amount",
     "tickets": "Tickets",
@@ -114,7 +234,15 @@
     "discountSuccess": "Discount Applied",
     "discountError": "Discount Error",
     "discountErrorGeneric": "Failed to apply discount code",
-    "discountApplied": "Discount of {amount} {currency} applied successfully"
+    "discountApplied": "Discount of {{amount}} {{currency}} applied successfully",
+    "bookingNotFound": "Booking not found. Please try again or contact support",
+    "loadingError": "Error loading booking details. Please try again later",
+    "utrSubmitError": "Failed to submit UTR. Please try again.",
+    "upiPayment": "UPI Payment",
+    "invalidUTR": "Please enter a valid UTR number (10-20 alphanumeric characters)",
+    "invalidDiscountCode": "Invalid discount code. Please check and try again",
+    "discountInactive": "This discount code is no longer active",
+    "eventTitle": "Event: {{eventTitle}}"
   },
   "confirmation": {
     "title": "Booking Confirmed!",
@@ -131,48 +259,30 @@
   },
   "categories": {
     "sports": "Sports",
-    "concert": "Concert",
-    "theater": "Theater",
+    "concerts": "Concerts",
+    "theatre": "Theatre",
     "comedy": "Comedy",
-    "conference": "Conference",
-    "exhibition": "Exhibition",
-    "festival": "Festival",
-    "sportsAndOutdoor": "Sports & Outdoor",
-    "musicAndEvents": "Music & Events",
-    "artAndCulture": "Art & Culture",
-    "title": "Categories"
+    "exhibitions": "Exhibitions",
+    "workshops": "Workshops",
+    "festivals": "Festivals",
+    "other": "Other"
   },
   "support": {
-    "helpAndSupport": "Help & Support",
-    "weAreHereToHelp": "We're here to help you with any questions or issues you may have with your tickets or bookings.",
-    "chat": "Live Chat",
-    "chatDescription": "Chat with our support team in real-time",
-    "startChat": "Start Chat",
-    "phone": "Call Us",
-    "phoneDescription": "Talk to our customer service team",
-    "email": "Email Support",
-    "emailDescription": "Send us an email and we'll get back to you",
-    "contactUs": "Contact Us",
-    "fillOutForm": "Fill out the form below to get in touch with our support team",
-    "name": "Name",
-    "yourName": "Your name",
-    "yourEmail": "Your email address",
-    "subject": "Subject",
-    "supportSubject": "How can we help you?",
-    "message": "Message",
-    "describeYourIssue": "Please describe your issue or question in detail",
-    "sendMessage": "Send Message",
-    "messageSent": "Message Sent",
-    "ourTeamWillContactYou": "Our team will contact you soon",
-    "faqs": "Frequently Asked Questions",
-    "faq1Question": "How do I book tickets?",
-    "faq1Answer": "You can book tickets by browsing events, selecting your preferred seats, and completing the payment process using any UPI app.",
-    "faq2Question": "How do I get my tickets after booking?",
-    "faq2Answer": "Once your payment is confirmed, you'll receive an email with your e-tickets. You can also download them from the confirmation page.",
-    "faq3Question": "Can I cancel or request a refund for my tickets?",
-    "faq3Answer": "Refund policies vary by event. Please check the event details page for specific refund policies or contact our support team for assistance.",
-    "faq4Question": "How do I view the venue in AR?",
-    "faq4Answer": "On the event details page, click on 'View Venue in AR' to experience an augmented reality view of the venue from your selected seat."
+    "title": "Support",
+    "subtitle": "How can we help you?",
+    "faq": "Frequently Asked Questions",
+    "contact": "Contact Us",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "workingHours": "Working Hours",
+    "ticketIssues": "Ticket Issues",
+    "refundRequests": "Refund Requests",
+    "technicalSupport": "Technical Support",
+    "feedback": "Feedback",
+    "submitFeedback": "Submit Feedback",
+    "feedbackSubmitted": "Thank you for your feedback!",
+    "feedbackError": "Failed to submit feedback. Please try again."
   },
   "admin": {
     "createDiscount": "Create Discount",

@@ -1,64 +1,85 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
-import { Team } from './team.model';
-import { Stadium } from './stadium.model';
-import { Booking } from './booking.model';
+import { Model, DataTypes } from 'sequelize';
+import { sequelize } from '../config/database';
 
-@Entity('events')
-export class Event {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ length: 100 })
-  name: string;
-
-  @Column({ type: 'timestamp' })
-  date: Date;
-
-  @Column({ length: 200, nullable: true })
+export interface EventAttributes {
+  id: number;
+  title: string;
   description: string;
-
-  @Column({ length: 200, nullable: true })
-  image: string;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  date: Date;
   price: number;
+  availableSeats: number;
+  teamId: number;
+  stadiumId: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-  @Column()
-  capacity: number;
+export interface EventCreationAttributes extends Omit<EventAttributes, 'id'> {}
 
-  @Column('simple-array', { default: [] })
-  bookedSeats: string[];
+export class Event extends Model<EventAttributes, EventCreationAttributes> implements EventAttributes {
+  public id!: number;
+  public title!: string;
+  public description!: string;
+  public date!: Date;
+  public price!: number;
+  public availableSeats!: number;
+  public teamId!: number;
+  public stadiumId!: number;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 
-  @Column({ default: true })
-  isActive: boolean;
+  // Define associations
+  public readonly bookings?: any[];
+  public readonly team?: any;
+  public readonly stadium?: any;
+}
 
-  @ManyToOne(() => Team, team => team.homeEvents)
-  @JoinColumn({ name: 'homeTeamId' })
-  homeTeam: Team;
-
-  @Column()
-  homeTeamId: string;
-
-  @ManyToOne(() => Team, team => team.awayEvents)
-  @JoinColumn({ name: 'awayTeamId' })
-  awayTeam: Team;
-
-  @Column()
-  awayTeamId: string;
-
-  @ManyToOne(() => Stadium, stadium => stadium.events)
-  @JoinColumn({ name: 'stadiumId' })
-  stadium: Stadium;
-
-  @Column()
-  stadiumId: string;
-
-  @OneToMany(() => Booking, booking => booking.event)
-  bookings: Booking[];
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-} 
+Event.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    date: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+    },
+    availableSeats: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    teamId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'teams',
+        key: 'id',
+      },
+    },
+    stadiumId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'stadiums',
+        key: 'id',
+      },
+    },
+  },
+  {
+    sequelize,
+    tableName: 'events',
+  }
+); 

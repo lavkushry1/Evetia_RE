@@ -10,7 +10,7 @@ import {
 } from '../ui/table';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { toast } from '../ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 interface Discount {
@@ -262,4 +262,4 @@ export const DiscountManagement: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};

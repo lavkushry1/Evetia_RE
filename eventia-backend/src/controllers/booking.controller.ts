@@ -1,309 +1,167 @@
-import { Request, Response } from 'express';
-import { AppDataSource } from '../config/database';
-import { Booking } from '../models/booking.model';
-import { Event } from '../models/event.model';
-import { socketService } from '../server';
-import pdfService from '../services/pdf.service';
+import { Request, Response, NextFunction } from 'express';
+import { PrismaClient } from '../../generated/prisma';
+import { PaymentService } from '../services/payment.service';
+import { TicketService } from '../services/ticket.service';
+import { CacheService } from '../services/cache.service';
 
-const bookingRepository = AppDataSource.getRepository(Booking);
-const eventRepository = AppDataSource.getRepository(Event);
+const prisma = new PrismaClient();
+const paymentService = PaymentService.getInstance();
+const ticketService = TicketService.getInstance();
+const cacheService = CacheService.getInstance();
 
+// Extend Express Request type to include user
 interface AuthRequest extends Request {
-  user?: {
+  user: {
     id: string;
   };
 }
 
-// Create booking
-export const createBooking = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    const { eventId, seats, totalAmount } = req.body;
-    
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+export class BookingController {
+  public async createBooking(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { eventId, seats, totalAmount } = req.body;
+      const userId = req.user.id;
+
+      // Create booking
+      const booking = await prisma.booking.create({
+        data: {
+          userId: parseInt(userId, 10),
+          eventId,
+          status: 'pending',
+          totalAmount,
+          quantity: seats.length
+        },
+        include: {
+          event: true,
+          user: true
+        }
+      });
+
+      // Update cache
+      await cacheService.set(CacheService.KEYS.BOOKING(booking.id.toString()), booking);
+
+      // Generate QR code for payment
+      const qrCode = await paymentService.generateUPIQR(booking.id, Number(totalAmount));
+
+      return res.json({
+        success: true,
+        data: {
+          booking,
+          qrCode
+        }
+      });
+    } catch (error) {
+      return next(error);
     }
-
-    // Check if event exists
-    const event = await eventRepository.findOne({ where: { id: eventId } });
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Check if seats are available
-    const bookedSeats = event.bookedSeats || [];
-    const areSeatsAvailable = seats.every((seat: string) => !bookedSeats.includes(seat));
-    
-    if (!areSeatsAvailable) {
-      return res.status(400).json({ message: 'Some seats are already booked' });
-    }
-
-    // Create booking
-    const booking = bookingRepository.create({
-      userId: req.user.id,
-      eventId,
-      seats,
-      quantity: seats.length,
-      totalAmount,
-      status: 'pending'
-    });
-
-    await bookingRepository.save(booking);
-    
-    // Update event's booked seats
-    event.bookedSeats = [...new Set([...bookedSeats, ...seats])];
-    await eventRepository.save(event);
-
-    // Notify other users through socket
-    socketService.getIO().to(`event:${eventId}`).emit('seatsBooked', {
-      eventId,
-      seats,
-      bookingId: booking.id
-    });
-    
-    return res.status(201).json(booking);
-  } catch (error) {
-    console.error('Create booking error:', error);
-    return res.status(500).json({ message: 'Error creating booking', error });
   }
-};
 
-// Get all bookings for a user
-export const getBookings = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
-    }
+  public async verifyPayment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { bookingId } = req.params;
+      const { utr } = req.body;
 
-    const bookings = await bookingRepository.find({
-      where: { userId: req.user.id },
-      relations: ['event'],
-      order: { createdAt: 'DESC' }
-    });
+      const isValid = await paymentService.verifyPayment(parseInt(bookingId, 10), utr);
 
-    return res.json(bookings);
-  } catch (error) {
-    console.error('Get bookings error:', error);
-    return res.status(500).json({ message: 'Error getting bookings', error });
-  }
-};
+      if (isValid) {
+        // Generate ticket
+        const ticketPath = await ticketService.generateTicket(parseInt(bookingId, 10));
 
-// Get a single booking
-export const getBooking = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
-    }
+        // Update cache
+        await cacheService.delete(CacheService.KEYS.BOOKING(bookingId));
 
-    const booking = await bookingRepository.findOne({
-      where: {
-        id: req.params.id,
-        userId: req.user.id
-      },
-      relations: ['event']
-    });
-
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    return res.json(booking);
-  } catch (error) {
-    console.error('Get booking error:', error);
-    return res.status(500).json({ message: 'Error getting booking', error });
-  }
-};
-
-// Update booking
-export const updateBooking = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    const { status } = req.body;
-
-    const booking = await bookingRepository.findOne({
-      where: {
-        id: req.params.id,
-        userId: req.user.id
-      }
-    });
-
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    // Update fields
-    if (status) booking.status = status;
-
-    await bookingRepository.save(booking);
-
-    // If booking is cancelled, release seats
-    if (status === 'cancelled') {
-      const event = await eventRepository.findOne({ where: { id: booking.eventId } });
-      if (event) {
-        event.bookedSeats = event.bookedSeats.filter(seat => !booking.seats.includes(seat));
-        await eventRepository.save(event);
-
-        // Notify other users through socket
-        socketService.getIO().to(`event:${booking.eventId}`).emit('seatsReleased', {
-          eventId: booking.eventId,
-          seats: booking.seats
+        return res.json({
+          success: true,
+          data: {
+            ticketPath
+          }
         });
       }
-    }
 
-    return res.json(booking);
-  } catch (error) {
-    console.error('Update booking error:', error);
-    return res.status(500).json({ message: 'Error updating booking', error });
-  }
-};
-
-// Cancel booking
-export const cancelBooking = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    const booking = await bookingRepository.findOne({
-      where: {
-        id: req.params.id,
-        userId: req.user.id
-      }
-    });
-
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    // Check if booking can be cancelled (e.g., not too close to event time)
-    const event = await eventRepository.findOne({ where: { id: booking.eventId } });
-    if (event) {
-      const eventDate = new Date(event.date);
-      const now = new Date();
-      const hoursUntilEvent = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-      
-      if (hoursUntilEvent < 24) {
-        return res.status(400).json({ message: 'Bookings can only be cancelled at least 24 hours before the event' });
-      }
-    }
-    
-    booking.status = 'cancelled';
-    await bookingRepository.save(booking);
-
-    // Release seats
-    if (event) {
-      event.bookedSeats = event.bookedSeats.filter(seat => !booking.seats.includes(seat));
-      await eventRepository.save(event);
-
-      // Notify other users through socket
-      socketService.getIO().to(`event:${booking.eventId}`).emit('seatsReleased', {
-        eventId: booking.eventId,
-        seats: booking.seats
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid UTR number'
       });
+    } catch (error) {
+      return next(error);
     }
-
-    return res.json({ message: 'Booking cancelled successfully', booking });
-  } catch (error) {
-    console.error('Cancel booking error:', error);
-    return res.status(500).json({ message: 'Error cancelling booking', error });
   }
-};
 
-// Lock seats temporarily during booking process
-export const lockSeats = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+  public async getBooking(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      // Try cache first
+      const cachedBooking = await cacheService.get(CacheService.KEYS.BOOKING(id));
+      if (cachedBooking) {
+        return res.json({
+          success: true,
+          data: cachedBooking
+        });
+      }
+
+      const booking = await prisma.booking.findUnique({
+        where: {
+          id: parseInt(id, 10),
+          userId: parseInt(userId, 10)
+        },
+        include: {
+          event: true,
+          user: true
+        }
+      });
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      // Update cache
+      await cacheService.set(CacheService.KEYS.BOOKING(id), booking);
+
+      return res.json({
+        success: true,
+        data: booking
+      });
+    } catch (error) {
+      return next(error);
     }
-
-    const { eventId, seats } = req.body;
-
-    // Check if event exists
-    const event = await eventRepository.findOne({ where: { id: eventId } });
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Emit socket event to lock seats
-    socketService.getIO().to(`event:${eventId}`).emit('lockSeats', {
-      eventId,
-      userId: req.user.id,
-      seats
-    });
-
-    return res.json({ message: 'Seats locked successfully', eventId, seats });
-  } catch (error) {
-    console.error('Lock seats error:', error);
-    return res.status(500).json({ message: 'Error locking seats', error });
   }
-};
 
-// Unlock seats if booking process is abandoned
-export const unlockSeats = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
+  public async getUserBookings(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user.id;
+
+      // Try cache first
+      const cachedBookings = await cacheService.get(CacheService.KEYS.USER_BOOKINGS(userId.toString()));
+      if (cachedBookings) {
+        return res.json({
+          success: true,
+          data: cachedBookings
+        });
+      }
+
+      const bookings = await prisma.booking.findMany({
+        where: {
+          userId: parseInt(userId, 10)
+        },
+        include: {
+          event: true,
+          user: true
+        }
+      });
+
+      // Update cache
+      await cacheService.set(CacheService.KEYS.USER_BOOKINGS(userId.toString()), bookings);
+
+      return res.json({
+        success: true,
+        data: bookings
+      });
+    } catch (error) {
+      return next(error);
     }
-
-    const { eventId, seats } = req.body;
-
-    // Check if event exists
-    const event = await eventRepository.findOne({ where: { id: eventId } });
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Emit socket event to unlock seats
-    socketService.getIO().to(`event:${eventId}`).emit('unlockSeats', {
-      eventId,
-      userId: req.user.id,
-      seats
-    });
-
-    return res.json({ message: 'Seats unlocked successfully', eventId, seats });
-  } catch (error) {
-    console.error('Unlock seats error:', error);
-    return res.status(500).json({ message: 'Error unlocking seats', error });
   }
-};
-
-// Generate ticket for confirmed booking
-export const generateTicket = async (req: AuthRequest, res: Response): Promise<Response> => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    const booking = await bookingRepository.findOne({
-      where: {
-        id: req.params.id,
-        userId: req.user.id
-      },
-      relations: ['event', 'user']
-    });
-
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    if (booking.status !== 'confirmed') {
-      return res.status(400).json({ message: 'Booking is not confirmed yet' });
-    }
-
-    // Generate PDF ticket
-    const pdfBuffer = await pdfService.generateTicket(booking.id);
-
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=ticket-${booking.id}.pdf`);
-
-    // Send the PDF
-    return res.send(pdfBuffer);
-  } catch (error) {
-    console.error('Generate ticket error:', error);
-    return res.status(500).json({ message: 'Error generating ticket', error });
-  }
-};
+}

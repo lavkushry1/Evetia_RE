@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Ticket, ArrowRight } from 'lucide-react';
-import AnimatedButton from '@/components/ui/AnimatedButton';
+import { AnimatedButton } from '@/components/ui/AnimatedButton';
 
 const Hero = () => {
   return (

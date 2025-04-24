@@ -1,32 +1,58 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Model, DataTypes } from 'sequelize';
+import { sequelize } from '../config/database';
 import { Event } from './event.model';
 
-@Entity('teams')
-export class Team {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ length: 100 })
+export interface TeamAttributes {
+  id: number;
   name: string;
-
-  @Column({ length: 200, nullable: true })
-  description: string;
-
-  @Column({ length: 200, nullable: true })
-  image: string;
-
-  @Column({ default: true })
+  description?: string;
+  image?: string;
   isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-  @OneToMany(() => Event, event => event.homeTeam)
-  homeEvents: Event[];
+export interface TeamCreationAttributes extends Omit<TeamAttributes, 'id'> {}
 
-  @OneToMany(() => Event, event => event.awayTeam)
-  awayEvents: Event[];
+export class Team extends Model<TeamAttributes, TeamCreationAttributes> implements TeamAttributes {
+  public id!: number;
+  public name!: string;
+  public description!: string;
+  public image!: string;
+  public isActive!: boolean;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  // Define associations
+  public readonly events?: Event[];
+}
 
-  @UpdateDateColumn()
-  updatedAt: Date;
-} 
+Team.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    name: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+    },
+    image: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'teams',
+  }
+); 

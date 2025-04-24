@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, message } from 'antd';
-import { createClient } from '@supabase/supabase-js';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
+import apiService from '@/services/api';
 
 interface DiscountFormProps {
     amount: number;
     onDiscountApplied: (discountedAmount: number, discountCode: string) => void;
 }
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export const DiscountForm: React.FC<DiscountFormProps> = ({ amount, onDiscountApplied }) => {
     const { t } = useTranslation();
@@ -22,48 +19,50 @@ export const DiscountForm: React.FC<DiscountFormProps> = ({ amount, onDiscountAp
         try {
             setLoading(true);
             
-            const { data, error } = await supabase
-                .from('discounts')
-                .select('*')
-                .eq('code', code)
-                .single();
-
-            if (error) throw error;
-
-            if (!data) {
-                message.error(t('payment.invalidDiscountCode'));
+            const settings = await apiService.getPaymentSettings();
+            
+            if (!settings.discountCode || settings.discountCode !== code) {
+                toast({
+                    title: t('common.error'),
+                    description: t('payment.invalidDiscountCode'),
+                    variant: "destructive"
+                });
                 return;
             }
 
-            if (!data.isActive) {
-                message.error(t('payment.discountInactive'));
+            if (!settings.isActive) {
+                toast({
+                    title: t('common.error'),
+                    description: t('payment.discountInactive'),
+                    variant: "destructive"
+                });
                 return;
             }
 
-            if (data.usesCount >= data.maxUses) {
-                message.error(t('payment.discountExhausted'));
-                return;
-            }
-
-            if (data.expiryDate && new Date(data.expiryDate) < new Date()) {
-                message.error(t('payment.discountExpired'));
-                return;
-            }
-
-            const discountedAmount = Math.max(0, amount - data.amount);
+            const discountedAmount = Math.max(0, amount - (settings.discountAmount || 0));
             onDiscountApplied(discountedAmount, code);
-            message.success(t('payment.discountApplied'));
+            toast({
+                title: t('common.success'),
+                description: t('payment.discountApplied', {
+                    amount: settings.discountAmount,
+                    currency: '₹'
+                })
+            });
             
         } catch (error) {
             console.error('Error applying discount:', error);
-            message.error(t('payment.discountError'));
+            toast({
+                title: t('common.error'),
+                description: t('payment.discountErrorGeneric'),
+                variant: "destructive"
+            });
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="discount-form">
+        <div className="flex space-x-2">
             <Input
                 placeholder={t('payment.enterDiscountCode')}
                 value={code}
@@ -71,12 +70,10 @@ export const DiscountForm: React.FC<DiscountFormProps> = ({ amount, onDiscountAp
                 maxLength={20}
             />
             <Button
-                type="primary"
                 onClick={handleApplyDiscount}
-                loading={loading}
-                disabled={!code}
+                disabled={loading || !code}
             >
-                {t('payment.applyDiscount')}
+                {loading ? t('common.processing') : t('payment.applyDiscount')}
             </Button>
         </div>
     );

@@ -1,11 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 import { UnauthorizedError } from '../utils/errors';
+import { PrismaClient } from '../../generated/prisma';
 
-export const adminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+const prisma = new PrismaClient();
+
+export const adminMiddleware = async (req: Request, _: Response, next: NextFunction) => {
     try {
-        const user = req.user;
+        const userId = req.user?.id;
         
-        if (!user || user.role !== 'admin') {
+        if (!userId) {
+            throw new UnauthorizedError('Not authenticated');
+        }
+
+        const admin = await prisma.admin.findUnique({
+            where: { id: parseInt(userId, 10) }
+        });
+
+        if (!admin) {
             throw new UnauthorizedError('Admin access required');
         }
         

@@ -1,22 +1,22 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
-import { Plus, Trash2, AlertTriangle } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createClient } from '@supabase/supabase-js';
+import { toast } from '@/hooks/use-toast';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
+import apiService from '@/services/api';
 
+// Form schema for discount validation
 const discountSchema = z.object({
   code: z.string().min(3, "Discount code must be at least 3 characters"),
-  amount: z.coerce.number().min(1, "Discount amount must be greater than 0"),
-  description: z.string().optional(),
+  amount: z.coerce.number().min(0, "Discount amount cannot be negative"),
   maxUses: z.coerce.number().min(1, "Maximum uses must be at least 1"),
   expiryDate: z.string().optional(),
 });
@@ -24,63 +24,34 @@ const discountSchema = z.object({
 type DiscountFormValues = z.infer<typeof discountSchema>;
 
 const AdminDiscountManagement = () => {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
-  const [configError, setConfigError] = useState<string | null>(null);
-
-  // Initialize Supabase client with error handling
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-
+  const [discounts, setDiscounts] = useState<any[]>([]);
+  
   const form = useForm<DiscountFormValues>({
     resolver: zodResolver(discountSchema),
     defaultValues: {
       code: '',
       amount: 0,
-      description: '',
-      maxUses: 100,
+      maxUses: 1,
       expiryDate: '',
     }
   });
 
-  const onSubmit = async (data: DiscountFormValues) => {
-    if (!supabase) {
-      toast({
-        title: "Configuration Error",
-        description: "Please connect your project to Supabase first",
-        variant: "destructive"
-      });
-      return;
-    }
+  useEffect(() => {
+    fetchDiscounts();
+  }, []);
 
-    setIsLoading(true);
+  const fetchDiscounts = async () => {
     try {
-      const { error } = await supabase
-        .from('discounts')
-        .insert({
-          code: data.code.toUpperCase(),
-          amount: data.amount,
-          description: data.description,
-          max_uses: data.maxUses,
-          expiry_date: data.expiryDate || null,
-          created_at: new Date().toISOString(),
-          is_active: true,
-          uses_count: 0
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Discount Created",
-        description: "The discount code has been created successfully.",
-      });
-
-      form.reset();
+      setIsLoading(true);
+      const settings = await apiService.getPaymentSettings();
+      setDiscounts([settings].filter(Boolean));
     } catch (error) {
-      console.error('Error creating discount:', error);
+      console.error('Error fetching discounts:', error);
       toast({
-        title: "Error",
-        description: "Failed to create discount code. Please try again.",
+        title: t('Error'),
+        description: t('Failed to load discounts'),
         variant: "destructive"
       });
     } finally {
@@ -88,53 +59,80 @@ const AdminDiscountManagement = () => {
     }
   };
 
-  if (!supabaseUrl || !supabaseKey) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <main className="flex-grow bg-gray-50 pt-16 pb-12 flex items-center justify-center">
-          <Card className="max-w-md w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center text-amber-600">
-                <AlertTriangle className="h-5 w-5 mr-2" />
-                Configuration Error
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4">Supabase configuration is missing. Please connect your project to Supabase first.</p>
-              <Button 
-                onClick={() => window.location.reload()} 
-                className="w-full"
-              >
-                Refresh Page
-              </Button>
-            </CardContent>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+  const onSubmit = async (data: DiscountFormValues) => {
+    try {
+      setIsLoading(true);
+      
+      await apiService.updatePaymentSettings({
+        discountCode: data.code,
+        discountAmount: data.amount,
+        isActive: true
+      });
+      
+      toast({
+        title: t('Success'),
+        description: t('Discount created successfully')
+      });
+      
+      form.reset();
+      fetchDiscounts();
+    } catch (error) {
+      console.error('Error creating discount:', error);
+      toast({
+        title: t('Error'),
+        description: t('Failed to create discount'),
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      setIsLoading(true);
+      
+      await apiService.updatePaymentSettings({
+        discountCode: undefined,
+        discountAmount: 0,
+        isActive: false
+      });
+      
+      toast({
+        title: t('Success'),
+        description: t('Discount deleted successfully')
+      });
+      
+      fetchDiscounts();
+    } catch (error) {
+      console.error('Error deleting discount:', error);
+      toast({
+        title: t('Error'),
+        description: t('Failed to delete discount'),
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <main className="flex-grow bg-gray-50 pt-16 pb-12">
-        <div className="container mx-auto px-4">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Discount Management</h1>
-            <p className="text-gray-600 mt-1">Create and manage discount codes for your events</p>
+      
+      <main className="flex-grow pt-16">
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold">{t('Discount Management')}</h1>
+            <p className="text-gray-600 mt-2">{t('Create and manage discount codes')}</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Plus className="h-5 w-5 mr-2 text-primary" />
-                  Create New Discount
-                </CardTitle>
+                <CardTitle>{t('Create Discount')}</CardTitle>
                 <CardDescription>
-                  Set up a new discount code for your events
+                  {t('Add a new discount code')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -145,108 +143,122 @@ const AdminDiscountManagement = () => {
                       name="code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Discount Code</FormLabel>
+                          <FormLabel>{t('Discount Code')}</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., SUMMER2025" {...field} />
+                            <Input placeholder="e.g., SUMMER2024" {...field} />
                           </FormControl>
-                          <FormDescription>
-                            A unique code that customers will enter
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
+                    
                     <FormField
                       control={form.control}
                       name="amount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Discount Amount (₹)</FormLabel>
+                          <FormLabel>{t('Discount Amount')}</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="500" {...field} />
+                            <Input type="number" min="0" step="0.01" {...field} />
                           </FormControl>
-                          <FormDescription>
-                            Fixed amount to be discounted
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
+                    
                     <FormField
                       control={form.control}
                       name="maxUses"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Maximum Uses</FormLabel>
+                          <FormLabel>{t('Maximum Uses')}</FormLabel>
                           <FormControl>
-                            <Input type="number" {...field} />
+                            <Input type="number" min="1" {...field} />
                           </FormControl>
-                          <FormDescription>
-                            How many times this code can be used
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
+                    
                     <FormField
                       control={form.control}
                       name="expiryDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Expiry Date</FormLabel>
+                          <FormLabel>{t('Expiry Date')}</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} />
                           </FormControl>
-                          <FormDescription>
-                            When this discount code expires
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description (Optional)</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Description of the discount" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('Creating...')}
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          {t('Create Discount')}
+                        </>
                       )}
-                    />
-
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? 'Creating...' : 'Create Discount Code'}
                     </Button>
                   </form>
                 </Form>
               </CardContent>
             </Card>
-
+            
             <Card>
               <CardHeader>
-                <CardTitle>Active Discounts</CardTitle>
+                <CardTitle>{t('Active Discounts')}</CardTitle>
                 <CardDescription>
-                  Currently active discount codes
+                  {t('Manage existing discount codes')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {/* We'll implement the active discounts list later */}
-                  <p className="text-sm text-gray-500">No active discounts</p>
-                </div>
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-32">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : discounts.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">
+                    {t('No active discounts')}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {discounts.map((discount) => (
+                      <div
+                        key={discount.id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium">{discount.discountCode}</p>
+                          <p className="text-sm text-gray-500">
+                            {t('Amount')}: ₹{discount.discountAmount}
+                          </p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDelete(discount.id)}
+                          disabled={isLoading}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
+      
       <Footer />
     </div>
   );

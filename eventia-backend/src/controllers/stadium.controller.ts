@@ -1,12 +1,9 @@
 import { Request, Response } from 'express';
-import { AppDataSource } from '../config/database';
 import { Stadium } from '../models/stadium.model';
-
-const stadiumRepository = AppDataSource.getRepository(Stadium);
 
 interface AuthRequest extends Request {
   user?: {
-    id: string;  // Changed from userId to id to match auth middleware
+    id: string;
   };
   file?: Express.Multer.File;
 }
@@ -16,19 +13,11 @@ export const createStadium = async (req: AuthRequest, res: Response): Promise<Re
   try {
     const { name, location, capacity } = req.body;
 
-    const stadium = stadiumRepository.create({
+    const stadium = await Stadium.create({
       name,
-      city: location,
-      address: location,
+      location,
       capacity: parseInt(capacity),
-      // Add other fields as needed
     });
-
-    if (req.user?.id) {
-      // Handle createdBy if needed
-    }
-
-    await stadiumRepository.save(stadium);
 
     return res.status(201).json(stadium);
   } catch (error) {
@@ -40,10 +29,8 @@ export const createStadium = async (req: AuthRequest, res: Response): Promise<Re
 // Get all stadiums
 export const getStadiums = async (_req: Request, res: Response): Promise<Response> => {
   try {
-    const stadiums = await stadiumRepository.find({
-      order: {
-        name: 'ASC'
-      }
+    const stadiums = await Stadium.findAll({
+      order: [['name', 'ASC']]
     });
     return res.json(stadiums);
   } catch (error) {
@@ -55,9 +42,7 @@ export const getStadiums = async (_req: Request, res: Response): Promise<Respons
 // Get single stadium
 export const getStadium = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const stadium = await stadiumRepository.findOne({
-      where: { id: req.params.id }
-    });
+    const stadium = await Stadium.findByPk(req.params.id);
     
     if (!stadium) {
       return res.status(404).json({ message: 'Stadium not found' });
@@ -75,23 +60,17 @@ export const updateStadium = async (req: AuthRequest, res: Response): Promise<Re
   try {
     const { name, location, capacity } = req.body;
 
-    const stadium = await stadiumRepository.findOne({
-      where: { id: req.params.id }
-    });
+    const stadium = await Stadium.findByPk(req.params.id);
     
     if (!stadium) {
       return res.status(404).json({ message: 'Stadium not found' });
     }
 
-    // Update fields
-    if (name) stadium.name = name;
-    if (location) {
-      stadium.city = location;
-      stadium.address = location;
-    }
-    if (capacity) stadium.capacity = parseInt(capacity);
-
-    await stadiumRepository.save(stadium);
+    await stadium.update({
+      name,
+      location,
+      capacity: capacity ? parseInt(capacity) : undefined
+    });
 
     return res.json(stadium);
   } catch (error) {
@@ -103,15 +82,13 @@ export const updateStadium = async (req: AuthRequest, res: Response): Promise<Re
 // Delete stadium
 export const deleteStadium = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
-    const stadium = await stadiumRepository.findOne({
-      where: { id: req.params.id }
-    });
+    const stadium = await Stadium.findByPk(req.params.id);
     
     if (!stadium) {
       return res.status(404).json({ message: 'Stadium not found' });
     }
 
-    await stadiumRepository.remove(stadium);
+    await stadium.destroy();
     return res.json({ message: 'Stadium deleted successfully' });
   } catch (error) {
     console.error('Delete stadium error:', error);
@@ -126,17 +103,14 @@ export const uploadStadiumImage = async (req: AuthRequest, res: Response): Promi
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const stadium = await stadiumRepository.findOne({
-      where: { id: req.params.id }
-    });
+    const stadium = await Stadium.findByPk(req.params.id);
     
     if (!stadium) {
       return res.status(404).json({ message: 'Stadium not found' });
     }
 
     const imageUrl = `/uploads/stadiums/${req.file.filename}`;
-    stadium.image = imageUrl;
-    await stadiumRepository.save(stadium);
+    await stadium.update({ image: imageUrl });
 
     return res.json({ imageUrl });
   } catch (error) {
@@ -148,21 +122,13 @@ export const uploadStadiumImage = async (req: AuthRequest, res: Response): Promi
 // Update seat layout
 export const updateSeatLayout = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
-    // We'll use the seatLayout from req.body when implementing this feature
-    // const { seatLayout } = req.body;
-
-    const stadium = await stadiumRepository.findOne({
-      where: { id: req.params.id }
-    });
+    const stadium = await Stadium.findByPk(req.params.id);
     
     if (!stadium) {
       return res.status(404).json({ message: 'Stadium not found' });
     }
 
-    // Handle seatLayout update if needed
-    
-    await stadiumRepository.save(stadium);
-
+    await stadium.update(req.body);
     return res.json(stadium);
   } catch (error) {
     console.error('Update seat layout error:', error);

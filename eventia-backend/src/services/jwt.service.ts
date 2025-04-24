@@ -1,21 +1,47 @@
-import jwt from 'jsonwebtoken';
-import { UnauthorizedError } from '../utils/errors';
+import jwt, { SignOptions, Secret } from 'jsonwebtoken';
+import config from '../config';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = '24h';
+interface TokenPayload {
+    id: string;
+    email?: string;
+    role?: string;
+}
 
 export class JwtService {
-    static generateToken(payload: any): string {
-        return jwt.sign(payload, JWT_SECRET, {
-            expiresIn: JWT_EXPIRES_IN
-        });
+    private static getExpiresIn(value: string | number): SignOptions['expiresIn'] {
+        if (typeof value === 'number') {
+            return Math.floor(value);
+        }
+        // JWT library accepts time strings like '60s', '2h', '1d'
+        return value as SignOptions['expiresIn'];
     }
 
-    static verifyToken(token: string): any {
-        try {
-            return jwt.verify(token, JWT_SECRET);
-        } catch (error) {
-            throw new UnauthorizedError('Invalid token');
-        }
+    static generateToken(payload: TokenPayload): string {
+        const options: SignOptions = {
+            expiresIn: this.getExpiresIn(config.jwt.expiresIn)
+        };
+        return jwt.sign(payload, config.jwt.secret as Secret, options);
+    }
+
+    static generateRefreshToken(payload: TokenPayload): string {
+        const options: SignOptions = {
+            expiresIn: this.getExpiresIn(config.jwt.refreshExpiresIn)
+        };
+        return jwt.sign(payload, config.jwt.refreshSecret as Secret, options);
+    }
+
+    static verifyToken(token: string): TokenPayload {
+        return jwt.verify(token, config.jwt.secret as Secret) as TokenPayload;
+    }
+
+    static verifyRefreshToken(token: string): TokenPayload {
+        return jwt.verify(token, config.jwt.refreshSecret as Secret) as TokenPayload;
+    }
+
+    static rotateRefreshToken(refreshToken: string): { accessToken: string; refreshToken: string } {
+        const payload = this.verifyRefreshToken(refreshToken);
+        const newAccessToken = this.generateToken(payload);
+        const newRefreshToken = this.generateRefreshToken(payload);
+        return { accessToken: newAccessToken, refreshToken: newRefreshToken };
     }
 } 

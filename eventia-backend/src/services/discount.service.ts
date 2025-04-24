@@ -1,17 +1,9 @@
-import { Repository } from 'typeorm';
-import { AppDataSource } from '../config/database';
 import { Discount } from '../models/discount.model';
 import { BadRequestError, NotFoundError } from '../utils/errors';
 
 export class DiscountService {
-    private discountRepository: Repository<Discount>;
-
-    constructor() {
-        this.discountRepository = AppDataSource.getRepository(Discount);
-    }
-
     async createDiscount(data: Partial<Discount>): Promise<Discount> {
-        const existingDiscount = await this.discountRepository.findOne({
+        const existingDiscount = await Discount.findOne({
             where: { code: data.code }
         });
 
@@ -19,8 +11,7 @@ export class DiscountService {
             throw new BadRequestError('Discount code already exists');
         }
 
-        const discount = this.discountRepository.create(data);
-        return this.discountRepository.save(discount);
+        return Discount.create(data as any);
     }
 
     async updateDiscount(id: string, data: Partial<Discount>): Promise<Discount> {
@@ -30,7 +21,7 @@ export class DiscountService {
         }
 
         if (data.code && data.code !== discount.code) {
-            const existingDiscount = await this.discountRepository.findOne({
+            const existingDiscount = await Discount.findOne({
                 where: { code: data.code }
             });
             if (existingDiscount) {
@@ -38,8 +29,8 @@ export class DiscountService {
             }
         }
 
-        Object.assign(discount, data);
-        return this.discountRepository.save(discount);
+        await discount.update(data as any);
+        return discount;
     }
 
     async deleteDiscount(id: string): Promise<void> {
@@ -47,19 +38,19 @@ export class DiscountService {
         if (!discount) {
             throw new NotFoundError('Discount not found');
         }
-        await this.discountRepository.remove(discount);
+        await discount.destroy();
     }
 
     async getDiscountById(id: string): Promise<Discount | null> {
-        return this.discountRepository.findOne({ where: { id } });
+        return Discount.findByPk(id);
     }
 
     async getDiscountByCode(code: string): Promise<Discount | null> {
-        return this.discountRepository.findOne({ where: { code } });
+        return Discount.findOne({ where: { code } });
     }
 
     async getAllDiscounts(): Promise<Discount[]> {
-        return this.discountRepository.find();
+        return Discount.findAll();
     }
 
     async validateAndApplyDiscount(code: string, amount: number): Promise<{ 
@@ -91,23 +82,10 @@ export class DiscountService {
             throw new NotFoundError('Discount not found');
         }
 
-        // Use a transaction to ensure atomicity
-        await this.discountRepository.manager.transaction(async (transactionalEntityManager) => {
-            const currentDiscount = await transactionalEntityManager.findOne(Discount, {
-                where: { id },
-                lock: { mode: 'pessimistic_write' }
-            });
+        if (discount.usesCount >= discount.maxUses) {
+            throw new BadRequestError('Discount usage limit reached');
+        }
 
-            if (!currentDiscount) {
-                throw new NotFoundError('Discount not found');
-            }
-
-            if (currentDiscount.usesCount >= currentDiscount.maxUses) {
-                throw new BadRequestError('Discount usage limit reached');
-            }
-
-            currentDiscount.usesCount += 1;
-            await transactionalEntityManager.save(currentDiscount);
-        });
+        await discount.increment('usesCount');
     }
 } 

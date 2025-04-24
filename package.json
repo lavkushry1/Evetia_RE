@@ -22,13 +22,21 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.5.0",
     "i18next": "^25.0.1",
+    "joi": "^17.13.3",
     "mongoose": "^7.5.0",
     "react-i18next": "^15.4.1",
-    "react-router-dom": "^7.5.1"
+    "react-router-dom": "^7.5.1",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@types/winston": "^2.4.4",
     "concurrently": "^8.2.1",
-    "nodemon": "^3.0.1"
+    "eslint": "^9.25.1",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-plugin-prettier": "^5.2.6",
+    "nodemon": "^3.0.1",
+    "prettier": "^3.5.3"
   }
 }

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createClient } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
@@ -13,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import apiService from '@/services/api';
 
 interface PaymentTransaction {
   id: string;
@@ -33,41 +33,14 @@ const UtrVerification: React.FC = () => {
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Initialize Supabase client
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   useEffect(() => {
     fetchTransactions();
-
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel('payment_transactions_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'payment_transactions' }, 
-        () => {
-          fetchTransactions();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   const fetchTransactions = async () => {
     try {
-      const { data, error } = await supabase
-        .from('payment_transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-
-      setTransactions(data || []);
+      const response = await apiService.getRequests({ type: 'payment' });
+      setTransactions(response.requests || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);
       toast({
@@ -84,31 +57,18 @@ const UtrVerification: React.FC = () => {
     setProcessingId(id);
 
     try {
-      const { error } = await supabase
-        .from('payment_transactions')
-        .update({
-          verification_status: status,
-          status: status === 'verified' ? 'completed' : 'failed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // If verified, trigger ticket generation
       if (status === 'verified') {
-        const transaction = transactions.find(t => t.id === id);
-        if (transaction) {
-          await supabase.rpc('generate_ticket', {
-            booking_id: transaction.booking_id
-          });
-        }
+        await apiService.approveRequest(id);
+      } else {
+        await apiService.rejectRequest(id);
       }
 
       toast({
         title: t('Success'),
         description: t('Transaction status updated successfully')
       });
+      
+      fetchTransactions();
     } catch (error) {
       console.error('Error updating transaction:', error);
       toast({
@@ -160,7 +120,7 @@ const UtrVerification: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   ₹{transaction.amount}
-                  {transaction.discount_amount > 0 && (
+                  {transaction.discount_amount && transaction.discount_amount > 0 && (
                     <span className="text-sm text-green-600 ml-2">
                       (-₹{transaction.discount_amount})
                     </span>

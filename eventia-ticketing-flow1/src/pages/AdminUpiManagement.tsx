@@ -10,9 +10,9 @@ import { toast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createClient } from '@supabase/supabase-js';
 import { QRCodeGenerator } from '@/components/payment/QRCodeGenerator';
 import { usePaymentSettings } from '@/hooks/use-payment-settings';
+import apiService from '@/services/api';
 
 // Form schema for UPI VPA validation
 const upiSchema = z.object({
@@ -31,25 +31,8 @@ const AdminUpiManagement = () => {
   const [isCopied, setIsCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleString());
-  const [configError, setConfigError] = useState<string | null>(null);
   
-  // Initialize Supabase client with error handling
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  
-  // Check if Supabase credentials are available
-  useEffect(() => {
-    if (!supabaseUrl || !supabaseKey) {
-      setConfigError('Supabase configuration is missing. Please connect your project to Supabase first.');
-    } else {
-      setConfigError(null);
-    }
-  }, [supabaseUrl, supabaseKey]);
-  
-  // Only create the client when credentials are available
-  const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-  
-  // Get current payment settings with modified hook that handles missing Supabase config
+  // Get current payment settings
   const { settings, isLoading, error, refreshSettings } = usePaymentSettings();
   
   const form = useForm<UpiFormValues>({
@@ -67,41 +50,26 @@ const AdminUpiManagement = () => {
   useEffect(() => {
     if (settings) {
       form.reset({
-        merchantName: 'Eventia Tickets',
-        vpa: settings.upiVPA,
+        merchantName: settings.merchantName,
+        vpa: settings.upiVpa,
         discountCode: settings.discountCode || '',
         discountAmount: settings.discountAmount || 0,
         description: 'Official payment account for Eventia ticket purchases',
       });
       
-      setLastUpdated(new Date(settings.updatedAt).toLocaleString());
+      setLastUpdated(new Date().toLocaleString());
     }
   }, [settings, form]);
 
   const onSubmit = async (data: UpiFormValues) => {
-    if (!supabase) {
-      toast({
-        title: "Supabase configuration missing",
-        description: "Please connect your project to Supabase first",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     try {
-      // In a real application, this would update the UPI details in the database
-      const { error } = await supabase
-        .from('payment_settings')
-        .insert({
-          upi_vpa: data.vpa,
-          merchant_name: data.merchantName,
-          discount_code: data.discountCode || null,
-          discount_amount: data.discountAmount || 0,
-          description: data.description || null,
-          updated_at: new Date().toISOString()
-        });
-        
-      if (error) throw error;
+      await apiService.updatePaymentSettings({
+        upiVpa: data.vpa,
+        merchantName: data.merchantName,
+        discountCode: data.discountCode,
+        discountAmount: data.discountAmount,
+        isActive: true
+      });
       
       toast({
         title: "UPI details updated",
@@ -110,7 +78,7 @@ const AdminUpiManagement = () => {
       
       setLastUpdated(new Date().toLocaleString());
       refreshSettings();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating UPI settings:', err);
       toast({
         title: "Error updating settings",
@@ -146,42 +114,6 @@ const AdminUpiManagement = () => {
       });
     }, 1000);
   };
-
-  if (configError) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <main className="flex-grow bg-gray-50 pt-16 pb-12 flex items-center justify-center">
-          <Card className="max-w-md w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center text-amber-600">
-                <AlertTriangle className="h-5 w-5 mr-2" />
-                Configuration Error
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4">{configError}</p>
-              <p className="text-sm text-gray-600 mb-4">
-                To use this feature, you need to connect your Lovable project to Supabase:
-              </p>
-              <ol className="list-decimal list-inside text-sm text-gray-600 space-y-2 mb-4">
-                <li>Click the green Supabase button in the top right corner</li>
-                <li>Follow the connection steps</li>
-                <li>Once connected, refresh this page</li>
-              </ol>
-              <Button 
-                onClick={() => window.location.reload()} 
-                className="w-full"
-              >
-                Refresh Page
-              </Button>
-            </CardContent>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (

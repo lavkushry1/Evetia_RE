@@ -8,8 +8,7 @@ import {
   getEvent,
   updateEvent,
   deleteEvent,
-  getEventsByTeam,
-  uploadEventImage
+  getEventsByTeam
 } from '../controllers/event.controller';
 
 const router = Router();
@@ -23,14 +22,5 @@ router.get('/team/:teamId', getEventsByTeam);
 router.post('/', auth, isAdmin, upload.single('image'), createEvent);
 router.put('/:id', auth, isAdmin, upload.single('image'), updateEvent);
 router.delete('/:id', auth, isAdmin, deleteEvent);
-
-// Upload event image route
-router.post(
-  '/:id/image',
-  auth,
-  isAdmin,
-  upload.single('image'),
-  uploadEventImage
-);
 
 export default router;

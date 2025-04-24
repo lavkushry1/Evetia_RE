@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -21,6 +20,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminEventManagement from "./pages/AdminEventManagement";
 import AdminUpiManagement from "./pages/AdminUpiManagement";
 import AdminUtrVerification from "./pages/AdminUtrVerification";
+import AdminRequestManagement from "./pages/AdminRequestManagement";
 import ARVenuePreview from "./pages/ARVenuePreview";
 import IPLTickets from "./pages/IPLTickets";
 import Support from "./pages/Support";
@@ -108,6 +108,11 @@ const AnimatedRoutes = () => {
         <Route path="/admin-utr" element={
           <PageTransition>
             <AdminUtrVerification />
+          </PageTransition>
+        } />
+        <Route path="/admin-requests" element={
+          <PageTransition>
+            <AdminRequestManagement />
           </PageTransition>
         } />
         <Route path="/venue-preview/:id" element={

@@ -1,7 +1,6 @@
-import { Server as SocketServer } from 'socket.io';
-import { Server } from 'http';
-import { getRepository } from 'typeorm';
-import { Event } from '../models/event.model';
+import { Server } from 'socket.io';
+import { Server as HttpServer } from 'http';
+import logger from './logger.service';
 
 interface SeatLock {
   userId: string;
@@ -10,33 +9,44 @@ interface SeatLock {
   timestamp: number;
 }
 
-class SocketService {
-  private io: SocketServer;
+export class SocketService {
+  private static instance: SocketService;
+  private io: Server;
   private seatLocks: Map<string, SeatLock> = new Map();
   private readonly LOCK_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
-  constructor(server: Server) {
-    this.io = new SocketServer(server, {
+  private constructor(server: HttpServer) {
+    this.io = new Server(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        origin: process.env.CLIENT_URL || 'http://localhost:3000',
         methods: ['GET', 'POST'],
-      },
+        credentials: true
+      }
     });
 
-    this.setupSocketHandlers();
+    this.setupSocketEvents();
     this.startCleanupInterval();
   }
 
-  private setupSocketHandlers() {
+  public static getInstance(server: HttpServer): SocketService {
+    if (!SocketService.instance) {
+      SocketService.instance = new SocketService(server);
+    }
+    return SocketService.instance;
+  }
+
+  private setupSocketEvents(): void {
     this.io.on('connection', (socket) => {
-      console.log('Client connected:', socket.id);
+      logger.info(`Client connected: ${socket.id}`);
 
       socket.on('joinEvent', (eventId: string) => {
         socket.join(`event:${eventId}`);
+        logger.info(`Client ${socket.id} joined event: ${eventId}`);
       });
 
       socket.on('leaveEvent', (eventId: string) => {
         socket.leave(`event:${eventId}`);
+        logger.info(`Client ${socket.id} left event: ${eventId}`);
       });
 
       socket.on('lockSeats', async (data: { eventId: string; userId: string; seats: string[] }) => {
@@ -48,12 +58,12 @@ class SocketService {
       });
 
       socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
+        logger.info(`Client disconnected: ${socket.id}`);
       });
     });
   }
 
-  private async handleSeatLock(socket: any, data: { eventId: string; userId: string; seats: string[] }) {
+  private async handleSeatLock(socket: any, data: { eventId: string; userId: string; seats: string[] }): Promise<void> {
     const { eventId, userId, seats } = data;
     const lockKey = `${eventId}:${userId}`;
 
@@ -91,21 +101,9 @@ class SocketService {
       userId,
       seats,
     });
-
-    // Update event's booked seats in database
-    try {
-      const eventRepository = getRepository(Event);
-      const event = await eventRepository.findOne({ where: { id: eventId } });
-      if (event) {
-        event.bookedSeats = [...new Set([...event.bookedSeats, ...seats])];
-        await eventRepository.save(event);
-      }
-    } catch (error) {
-      console.error('Error updating event seats:', error);
-    }
   }
 
-  private handleSeatUnlock(socket: any, data: { eventId: string; userId: string; seats: string[] }) {
+  private handleSeatUnlock(_socket: any, data: { eventId: string; userId: string; seats: string[] }): void {
     const { eventId, userId, seats } = data;
     const lockKey = `${eventId}:${userId}`;
 
@@ -120,7 +118,7 @@ class SocketService {
     }
   }
 
-  private startCleanupInterval() {
+  private startCleanupInterval(): void {
     setInterval(() => {
       const now = Date.now();
       for (const [key, lock] of this.seatLocks.entries()) {
@@ -136,9 +134,15 @@ class SocketService {
     }, 60000); // Check every minute
   }
 
-  public getIO(): SocketServer {
-    return this.io;
+  public emitSeatUpdate(eventId: string, seatData: any): void {
+    this.io.to(`event:${eventId}`).emit('seatUpdate', seatData);
   }
-}
 
-export default SocketService; 
+  public emitBookingUpdate(eventId: string, bookingData: any): void {
+    this.io.to(`event:${eventId}`).emit('bookingUpdate', bookingData);
+  }
+
+  public emitPaymentUpdate(eventId: string, paymentData: any): void {
+    this.io.to(`event:${eventId}`).emit('paymentUpdate', paymentData);
+  }
+} 

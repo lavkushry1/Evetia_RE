@@ -34,7 +34,7 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     }
 });
 
-router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/', authMiddleware, adminMiddleware, async (_, res) => {
     try {
         const discounts = await discountService.getAllDiscounts();
         res.json(discounts);

@@ -1,25 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { JwtService } from '../services/jwt.service';
+import { UnauthorizedError } from '../utils/errors';
 
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    [key: string]: any;
-  };
-}
-
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ message: 'Authentication required' });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      throw new UnauthorizedError('No authorization header');
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as { id: string };
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      throw new UnauthorizedError('No token provided');
+    }
+
+    const decoded = JwtService.verifyToken(token);
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' });
+    next(new UnauthorizedError('Invalid token'));
   }
 }; 

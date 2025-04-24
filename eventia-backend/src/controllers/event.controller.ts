@@ -1,32 +1,28 @@
 import { Request, Response } from 'express';
-import { AppDataSource } from '../config/database';
 import { Event } from '../models/event.model';
 import { Team } from '../models/team.model';
 import { Stadium } from '../models/stadium.model';
-import fs from 'fs';
 
 interface CreateEventRequest extends Request {
   body: {
-    name: string;
+    title: string;
     description: string;
     date: string;
     price: number;
-    capacity: number;
-    homeTeamId: string;
-    awayTeamId: string;
-    stadiumId: string;
+    availableSeats: number;
+    teamId: number;
+    stadiumId: number;
   };
 }
-
-const eventRepository = AppDataSource.getRepository(Event);
-const teamRepository = AppDataSource.getRepository(Team);
-const stadiumRepository = AppDataSource.getRepository(Stadium);
 
 // Get all events
 export const getEvents = async (_req: Request, res: Response): Promise<Response> => {
   try {
-    const events = await eventRepository.find({
-      relations: ['homeTeam', 'awayTeam', 'stadium']
+    const events = await Event.findAll({
+      include: [
+        { model: Team },
+        { model: Stadium }
+      ]
     });
     return res.json(events);
   } catch (error) {
@@ -37,9 +33,11 @@ export const getEvents = async (_req: Request, res: Response): Promise<Response>
 // Get single event
 export const getEvent = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const event = await eventRepository.findOne({
-      where: { id: req.params.id },
-      relations: ['homeTeam', 'awayTeam', 'stadium']
+    const event = await Event.findByPk(req.params.id, {
+      include: [
+        { model: Team },
+        { model: Stadium }
+      ]
     });
     
     if (!event) {
@@ -55,14 +53,16 @@ export const getEvent = async (req: Request, res: Response): Promise<Response> =
 // Get events by team
 export const getEventsByTeam = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const teamId = req.params.teamId;
+    const teamId = parseInt(req.params.teamId);
     
-    const events = await eventRepository.find({
-      where: [
-        { homeTeamId: teamId },
-        { awayTeamId: teamId }
-      ],
-      relations: ['homeTeam', 'awayTeam', 'stadium']
+    const events = await Event.findAll({
+      where: {
+        teamId
+      },
+      include: [
+        { model: Team },
+        { model: Stadium }
+      ]
     });
     
     return res.json(events);
@@ -74,31 +74,26 @@ export const getEventsByTeam = async (req: Request, res: Response): Promise<Resp
 // Create event
 export const createEvent = async (req: CreateEventRequest, res: Response): Promise<Response> => {
   try {
-    const { name, description, date, price, capacity, homeTeamId, awayTeamId, stadiumId } = req.body;
+    const { title, description, date, price, availableSeats, teamId, stadiumId } = req.body;
 
-    const homeTeam = await teamRepository.findOne({ where: { id: homeTeamId } });
-    const awayTeam = await teamRepository.findOne({ where: { id: awayTeamId } });
-    const stadium = await stadiumRepository.findOne({ where: { id: stadiumId } });
+    const team = await Team.findByPk(teamId);
+    const stadium = await Stadium.findByPk(stadiumId);
 
-    if (!homeTeam || !awayTeam || !stadium) {
+    if (!team || !stadium) {
       return res.status(404).json({ message: 'Team or stadium not found' });
     }
 
-    const event = eventRepository.create({
-      name,
+    const event = await Event.create({
+      title,
       description,
       date: new Date(date),
       price,
-      capacity,
-      homeTeam,
-      awayTeam,
-      stadium,
-      bookedSeats: 0,
-      isActive: true
+      availableSeats,
+      teamId,
+      stadiumId
     });
 
-    const savedEvent = await eventRepository.save(event);
-    return res.status(201).json(savedEvent);
+    return res.status(201).json(event);
   } catch (error) {
     return res.status(500).json({ message: 'Error creating event', error });
   }
@@ -108,58 +103,40 @@ export const createEvent = async (req: CreateEventRequest, res: Response): Promi
 export const updateEvent = async (req: Request, res: Response): Promise<Response> => {
   try {
     const eventId = req.params.id;
-    const event = await eventRepository.findOne({ where: { id: eventId } });
+    const event = await Event.findByPk(eventId);
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
     
-    // Update fields
-    const { name, date, description, price, capacity, homeTeamId, awayTeamId, stadiumId } = req.body;
+    const { title, date, description, price, availableSeats, teamId, stadiumId } = req.body;
     
-    if (name) event.name = name;
-    if (date) event.date = new Date(date);
-    if (description) event.description = description;
-    if (price) event.price = parseFloat(price);
-    if (capacity) event.capacity = parseInt(capacity);
-    
-    // Update teams if provided
-    if (homeTeamId) {
-      const homeTeam = await teamRepository.findOne({ where: { id: homeTeamId } });
-      if (!homeTeam) {
-        return res.status(400).json({ message: 'Home team not found' });
+    // Update team if provided
+    if (teamId) {
+      const team = await Team.findByPk(teamId);
+      if (!team) {
+        return res.status(400).json({ message: 'Team not found' });
       }
-      event.homeTeam = homeTeam;
-    }
-    
-    if (awayTeamId) {
-      const awayTeam = await teamRepository.findOne({ where: { id: awayTeamId } });
-      if (!awayTeam) {
-        return res.status(400).json({ message: 'Away team not found' });
-      }
-      event.awayTeam = awayTeam;
     }
     
     // Update stadium if provided
     if (stadiumId) {
-      const stadium = await stadiumRepository.findOne({ where: { id: stadiumId } });
+      const stadium = await Stadium.findByPk(stadiumId);
       if (!stadium) {
         return res.status(400).json({ message: 'Stadium not found' });
       }
-      event.stadium = stadium as Stadium;
     }
     
-    // Handle image upload
-    if (req.file) {
-      // Delete old image if exists
-      if (event.image && fs.existsSync(event.image)) {
-        fs.unlinkSync(event.image);
-      }
-      event.image = req.file.path;
-    }
-    
-    // Save updated event
-    await eventRepository.save(event);
+    // Update event
+    await event.update({
+      title,
+      date: date ? new Date(date) : undefined,
+      description,
+      price: price ? parseFloat(price) : undefined,
+      availableSeats: availableSeats ? parseInt(availableSeats) : undefined,
+      teamId,
+      stadiumId
+    });
     
     return res.json(event);
   } catch (error) {
@@ -171,51 +148,17 @@ export const updateEvent = async (req: Request, res: Response): Promise<Response
 export const deleteEvent = async (req: Request, res: Response): Promise<Response> => {
   try {
     const eventId = req.params.id;
-    const event = await eventRepository.findOne({ where: { id: eventId } });
+    const event = await Event.findByPk(eventId);
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
     
-    // Delete image if exists
-    if (event.image && fs.existsSync(event.image)) {
-      fs.unlinkSync(event.image);
-    }
-    
     // Delete event
-    await eventRepository.remove(event);
+    await event.destroy();
     
     return res.json({ message: 'Event deleted successfully' });
   } catch (error) {
     return res.status(500).json({ message: 'Error deleting event', error });
-  }
-};
-
-// Upload event image
-export const uploadEventImage = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const eventId = req.params.id;
-    const event = await eventRepository.findOne({ where: { id: eventId } });
-    
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-    
-    // Delete old image if exists
-    if (event.image && fs.existsSync(event.image)) {
-      fs.unlinkSync(event.image);
-    }
-    
-    // Update event with new image path
-    event.image = req.file.path;
-    await eventRepository.save(event);
-    
-    return res.json({ message: 'Image uploaded successfully', imagePath: event.image });
-  } catch (error) {
-    return res.status(500).json({ message: 'Error uploading image', error });
   }
 };

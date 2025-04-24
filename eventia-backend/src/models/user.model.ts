@@ -1,55 +1,72 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BeforeInsert, OneToMany } from 'typeorm';
-import { Booking } from './booking.model';
-import { Payment } from './payment.model';
-import bcrypt from 'bcryptjs';
+import { Model, DataTypes } from 'sequelize';
+import { sequelize } from '../config/database';
 
-@Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ length: 100 })
+export interface UserAttributes {
+  id: number;
   name: string;
-
-  @Column({ length: 100, unique: true })
   email: string;
-
-  @Column({ length: 100 })
   password: string;
-
-  @Column({ length: 50 })
-  firstName: string;
-
-  @Column({ length: 50 })
-  lastName: string;
-
-  @Column({ length: 20, default: 'user' })
-  role: 'user' | 'admin';
-
-  @Column({ default: true })
+  phone?: string;
+  role: string;
   isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-  @OneToMany(() => Booking, booking => booking.user)
-  bookings: Booking[];
+export interface UserCreationAttributes extends Omit<UserAttributes, 'id'> {}
 
-  @OneToMany(() => Payment, payment => payment.user)
-  payments: Payment[];
+export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
+  public id!: number;
+  public name!: string;
+  public email!: string;
+  public password!: string;
+  public phone!: string;
+  public role!: string;
+  public isActive!: boolean;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  // Define associations
+  public readonly bookings?: any[];
+}
 
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @BeforeInsert()
-  async hashPassword() {
-    if (this.password) {
-      const salt = await bcrypt.genSalt(10);
-      this.password = await bcrypt.hash(this.password, salt);
-    }
+User.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    name: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+    email: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      unique: true,
+    },
+    password: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    phone: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    role: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'user',
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'users',
   }
-
-  async comparePassword(candidatePassword: string): Promise<boolean> {
-    return bcrypt.compare(candidatePassword, this.password);
-  }
-} 
+); 

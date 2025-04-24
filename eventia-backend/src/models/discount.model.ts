@@ -1,33 +1,32 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Model, DataTypes } from 'sequelize';
+import { sequelize } from '../config/database';
 
-@Entity('discounts')
-export class Discount {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ unique: true })
+export interface DiscountAttributes {
+  id: number;
   code: string;
-
-  @Column()
   amount: number;
-
-  @Column({ nullable: true })
-  description: string;
-
-  @Column({ default: 100 })
+  description?: string;
   maxUses: number;
-
-  @Column({ default: 0 })
   usesCount: number;
-
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  expiryDate: Date;
-
-  @CreateDateColumn({ type: 'timestamp with time zone' })
-  createdAt: Date;
-
-  @Column({ default: true })
+  expiryDate?: Date;
   isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface DiscountCreationAttributes extends Omit<DiscountAttributes, 'id' | 'usesCount'> {}
+
+export class Discount extends Model<DiscountAttributes, DiscountCreationAttributes> implements DiscountAttributes {
+  public id!: number;
+  public code!: string;
+  public amount!: number;
+  public description!: string;
+  public maxUses!: number;
+  public usesCount!: number;
+  public expiryDate!: Date;
+  public isActive!: boolean;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 
   isExpired(): boolean {
     if (!this.isActive) return true;
@@ -44,4 +43,50 @@ export class Discount {
     if (!this.isValid()) return amount;
     return Math.max(0, amount - this.amount);
   }
-} 
+}
+
+Discount.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    code: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    amount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    maxUses: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 100,
+    },
+    usesCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    expiryDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'discounts',
+  }
+); 

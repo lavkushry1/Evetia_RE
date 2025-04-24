@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:eventia123@localhost:5432/eventia?schema=public"
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String
+  bookings  Booking[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String   @map("password_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admins")
+}
+
+model Team {
+  id        Int      @id @default(autoincrement())
+  name      String
+  logoUrl   String?  @map("logo_url")
+  events    Event[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("teams")
+}
+
+model Stadium {
+  id        Int      @id @default(autoincrement())
+  name      String
+  city      String
+  address   String?
+  capacity  Int
+  imageUrl  String?  @map("image_url")
+  events    Event[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("stadiums")
+}
+
+model Event {
+  id          Int       @id @default(autoincrement())
+  name        String
+  date        DateTime
+  description String?
+  imageUrl    String?   @map("image_url")
+  price       Decimal   @db.Decimal(10, 2)
+  capacity    Int
+  bookedSeats Int       @default(0) @map("booked_seats")
+  isActive    Boolean   @default(true) @map("is_active")
+  teamId      Int?      @map("team_id")
+  stadiumId   Int?      @map("stadium_id")
+  team        Team?     @relation(fields: [teamId], references: [id])
+  stadium     Stadium?  @relation(fields: [stadiumId], references: [id])
+  bookings    Booking[]
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("events")
+}
+
+model Booking {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  eventId     Int       @map("event_id")
+  quantity    Int
+  totalAmount Decimal   @map("total_amount") @db.Decimal(10, 2)
+  status      String
+  user        User      @relation(fields: [userId], references: [id])
+  event       Event     @relation(fields: [eventId], references: [id])
+  payments    Payment[]
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("bookings")
+}
+
+model Payment {
+  id        Int      @id @default(autoincrement())
+  bookingId Int      @map("booking_id")
+  amount    Decimal  @db.Decimal(10, 2)
+  status    String
+  utrNumber String?  @map("utr_number")
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+model UpiSetting {
+  id             Int      @id @default(autoincrement())
+  upiVpa         String   @unique @map("upi_vpa")
+  merchantName   String   @default("Eventia Tickets") @map("merchant_name")
+  discountCode   String?  @map("discount_code")
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("upi_settings")
+}

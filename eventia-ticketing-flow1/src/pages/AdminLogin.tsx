@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -7,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Shield } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import apiService from '@/services/api';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -29,25 +28,12 @@ const AdminLogin = () => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Check if user exists in admins table
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
-          .select('*')
-          .eq('email', email)
-          .single();
-
-        if (adminError || !adminData) {
-          throw new Error('Unauthorized access');
-        }
-
+      const response = await apiService.login(email, password);
+      
+      if (response.token) {
+        // Store the token for future authenticated requests
+        localStorage.setItem('admin_token', response.token);
+        
         toast({
           title: "Login successful",
           description: "Welcome to the admin dashboard",

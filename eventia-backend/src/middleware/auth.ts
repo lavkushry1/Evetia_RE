@@ -1,9 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { AppDataSource } from '../config/database';
 import { User } from '../models/user.model';
-
-const userRepository = AppDataSource.getRepository(User);
 
 interface JwtPayload {
   id: string;
@@ -28,13 +25,13 @@ export const auth = async (req: Request, res: Response, next: NextFunction): Pro
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as JwtPayload;
-    const user = await userRepository.findOne({ where: { id: decoded.id } });
+    const user = await User.findByPk(decoded.id);
 
     if (!user) {
       return res.status(401).json({ message: 'Token is not valid' });
     }
 
-    req.user = { id: user.id };
+    req.user = { id: user.id.toString() };
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Token is not valid' });
